@@ -142,7 +142,11 @@ def _optional_import(name: str) -> ModuleType:
     try:
         return importlib.import_module(name)
     except ImportError as exc:
-        raise STTUnavailable(f"Optional voice dependency is missing: {name}") from exc
+        missing = exc.name or "unknown module"
+        raise STTUnavailable(
+            f"Optional voice dependency '{name}' could not be imported "
+            f"(missing or incompatible module: {missing}): {exc}"
+        ) from exc
 
 
 def _named_file(files: dict[str, Path], name: str) -> Path:
