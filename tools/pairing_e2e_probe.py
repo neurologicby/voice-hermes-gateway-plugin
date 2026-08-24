@@ -47,10 +47,40 @@ async def _run() -> dict[str, object]:
     )
 
     from hermes_voice_gateway.adapter import VoiceGatewayAdapter
+    from hermes_voice_gateway.stt import STTResult
+
+    class FakeSTTSession:
+        def __init__(self, seq: int, language: str) -> None:
+            self.seq = seq
+            self.language = language
+            self.cancelled = False
+
+        def accept_pcm(self, pcm_s16le: bytes) -> str | None:
+            return "voice interim" if pcm_s16le else None
+
+        def finish(self) -> STTResult:
+            return STTResult(seq=self.seq, text="voice final", language="ru")
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+    class FakeSTTEngine:
+        name = "fake-streaming"
+
+        def __init__(self) -> None:
+            self.sessions: list[FakeSTTSession] = []
+
+        def create_session(self, *, seq: int, language: str, sample_rate: int):
+            assert sample_rate == 16_000
+            session = FakeSTTSession(seq, language)
+            self.sessions.append(session)
+            return session
 
     port = _free_loopback_port()
+    stt_engine = FakeSTTEngine()
     adapter = VoiceGatewayAdapter(
-        PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": port})
+        PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": port}),
+        stt_engine=stt_engine,
     )
     inbound_events: asyncio.Queue[object] = asyncio.Queue()
 
@@ -117,6 +147,22 @@ async def _run() -> dict[str, object]:
                     and getattr(file_event, "media_types", None) == ["text/plain"]
                 )
 
+                await ws.send_json({"type": "audio_start", "seq": 11, "lang": "auto"})
+                await ws.send_bytes((11).to_bytes(8, "big") + b"\x01\x00\x02\x00")
+                interim = await receive_type(ws, "interim")
+                result["voice_interim"] = interim.get("text")
+                await ws.send_json({"type": "audio_end", "seq": 11, "vad": "speech"})
+                final = await receive_type(ws, "final")
+                result["voice_final"] = final.get("text")
+                voice_event = await asyncio.wait_for(inbound_events.get(), timeout=2.0)
+                result["voice_dispatched"] = getattr(voice_event, "text", "")
+
+                await ws.send_json({"type": "audio_start", "seq": 12, "lang": "auto"})
+                await ws.send_json({"type": "interrupt"})
+                await ws.send_json({"type": "ping", "t": 12})
+                await receive_type(ws, "pong")
+                result["voice_cancelled"] = stt_engine.sessions[-1].cancelled
+
                 async with session.ws_connect(url) as replacement:
                     await replacement.send_json(
                         {
@@ -176,6 +222,10 @@ def main() -> int:
         "agent_text": "phase one response",
         "agent_interim": "phase one draft",
         "file_received": True,
+        "voice_interim": "voice interim",
+        "voice_final": "voice final",
+        "voice_dispatched": "voice final",
+        "voice_cancelled": True,
         "reconnect_session_stable": True,
         "old_connection_replaced": True,
         "reconnect_ping": 456,

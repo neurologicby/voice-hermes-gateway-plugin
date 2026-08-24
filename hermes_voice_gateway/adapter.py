@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -25,6 +26,7 @@ from .connection import ClientConnection, CompletedFile, ConnectionState
 from .pairing import PairingService
 from .protocol import ControlMessage, ProtocolError
 from .protocol import MessageType as WireMessageType
+from .stt import StreamingSTTEngine, STTCoordinator, STTSessionMissing, STTUnavailable
 from .ws_server import VoiceWSServer
 
 
@@ -39,15 +41,24 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
     supports_status_text = True
 
-    def __init__(self, config: PlatformConfig):
+    def __init__(
+        self,
+        config: PlatformConfig,
+        *,
+        stt_engine: StreamingSTTEngine | None = None,
+    ):
         super().__init__(config=config, platform=Platform("voice"))
         self.voice_config = VoicePlatformConfig.from_mapping(getattr(config, "extra", {}) or {})
         self._pairing_profile: str | None = None
         self._pairing_service: PairingService | None = None
+        self.stt = STTCoordinator(stt_engine, max_workers=self.voice_config.stt_workers)
         self.server = VoiceWSServer(self.voice_config, self)
         self._connections_by_chat: dict[str, ClientConnection] = {}
         self.ready = False
-        self.stt_status: dict[str, Any] = {"engine": "unloaded"}
+        self.stt_status: dict[str, Any] = {
+            "engine": stt_engine.name if stt_engine is not None else "unloaded",
+            "ready": stt_engine is not None,
+        }
         self.tts_status: dict[str, Any] = {"engine": "unloaded"}
 
     @property
@@ -69,6 +80,7 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
     async def disconnect(self) -> None:
         self.ready = False
+        await self.stt.close()
         await self.server.stop()
         self._connections_by_chat.clear()
         self._mark_disconnected()
@@ -200,6 +212,8 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             WireMessageType.TEST: self._on_test,
             WireMessageType.TEXT: self._on_text,
             WireMessageType.FILE: self._on_file,
+            WireMessageType.AUDIO_START: self._on_audio_start,
+            WireMessageType.AUDIO_END: self._on_audio_end,
             WireMessageType.INTERRUPT: self._on_interrupt,
         }
         handler = handlers.get(message.type)
@@ -208,9 +222,20 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         await handler(connection, message.payload)
 
     async def handle_binary(self, connection: ClientConnection, payload: bytes) -> None:
-        completed = connection.context.append_file_chunk(payload)
-        if completed is not None:
-            await self._dispatch_file(connection, completed)
+        if connection.context.pending_file is not None:
+            completed = connection.context.append_file_chunk(payload)
+            if completed is not None:
+                await self._dispatch_file(connection, completed)
+            return
+        seq, pcm = connection.context.parse_audio_chunk(payload)
+        try:
+            interim = await self.stt.accept(id(connection), seq=seq, pcm_s16le=pcm)
+        except STTSessionMissing as exc:
+            raise ProtocolError("stale_audio", "STT-сессия уже завершена") from exc
+        except Exception as exc:
+            raise ProtocolError("stt_failed", "Streaming STT не обработал аудио") from exc
+        if interim:
+            await connection.send_json({"type": "interim", "seq": seq, "text": interim})
 
     async def _on_pair_request(self, connection: ClientConnection, payload: dict[str, Any]) -> None:
         code = self.pairing.request_code(payload["device_id"], payload["user_name"])
@@ -278,6 +303,62 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             max_bytes=self.voice_config.max_file_bytes,
         )
 
+    async def _on_audio_start(
+        self, connection: ClientConnection, payload: dict[str, Any]
+    ) -> None:
+        seq = payload["seq"]
+        connection.context.start_audio(seq)
+        try:
+            await self.stt.start(id(connection), seq=seq, language=payload["lang"])
+        except STTUnavailable as exc:
+            connection.context.interrupt()
+            raise ProtocolError("stt_unavailable", "Streaming STT ещё не готов") from exc
+        except Exception as exc:
+            connection.context.interrupt()
+            raise ProtocolError("stt_failed", "Не удалось начать STT-сессию") from exc
+
+    async def _on_audio_end(
+        self, connection: ClientConnection, payload: dict[str, Any]
+    ) -> None:
+        seq = payload["seq"]
+        if connection.context.active_audio_seq != seq:
+            raise ProtocolError("stale_audio", "Sequence не совпадает с активной репликой")
+        try:
+            result = await self.stt.finish(id(connection), seq=seq)
+        except STTSessionMissing as exc:
+            connection.context.interrupt()
+            raise ProtocolError("stale_audio", "STT-сессия уже завершена") from exc
+        except Exception as exc:
+            connection.context.interrupt()
+            raise ProtocolError("stt_failed", "Streaming STT не завершил реплику") from exc
+        connection.context.finish_audio(seq)
+        await connection.send_json(
+            {"type": "final", "seq": seq, "text": result.text, "lang": result.language}
+        )
+        if result.text:
+            await self._dispatch_transcript(connection, result.text, seq)
+
+    async def _dispatch_transcript(
+        self, connection: ClientConnection, text: str, seq: int
+    ) -> None:
+        context = connection.context
+        if context.state is not ConnectionState.READY or not context.chat_id:
+            raise ProtocolError("pair_required", "Аудио требует pairing")
+        source = self.build_source(
+            chat_id=context.chat_id,
+            chat_name=context.user_name,
+            chat_type="dm",
+            user_id=context.device_id,
+            user_name=context.user_name,
+        )
+        event = MessageEvent(
+            text=text,
+            message_type=MessageType.VOICE,
+            source=source,
+            raw_message={"transport": "voice-ws", "audio_seq": seq},
+        )
+        await self.handle_message(event)
+
     async def _dispatch_file(
         self, connection: ClientConnection, completed: CompletedFile
     ) -> None:
@@ -320,6 +401,7 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
     async def _on_interrupt(self, connection: ClientConnection, payload: dict[str, Any]) -> None:
         del payload
+        await self.stt.cancel(id(connection))
         connection.context.interrupt()
         if connection.context.chat_id:
             source = self.build_source(
@@ -354,6 +436,14 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         chat_id = connection.context.chat_id
         if chat_id and self._connections_by_chat.get(chat_id) is connection:
             self._connections_by_chat.pop(chat_id, None)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            task = loop.create_task(self.stt.cancel(id(connection)))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         connection.context.close()
 
 

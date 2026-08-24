@@ -15,6 +15,7 @@ class VoicePlatformConfig:
     max_connections: int = 10
     max_file_bytes: int = 50 * 1024 * 1024
     max_audio_chunk_bytes: int = 64 * 1024
+    stt_workers: int = 2
     heartbeat_seconds: float = 30.0
     idle_timeout_seconds: float = 90.0
     trusted_proxies: tuple[str, ...] = ()
@@ -40,6 +41,7 @@ class VoicePlatformConfig:
             max_audio_chunk_bytes=int(
                 values.get("max_audio_chunk_bytes", defaults.max_audio_chunk_bytes)
             ),
+            stt_workers=int(values.get("stt_workers", defaults.stt_workers)),
             heartbeat_seconds=float(values.get("heartbeat_seconds", defaults.heartbeat_seconds)),
             idle_timeout_seconds=float(
                 values.get("idle_timeout_seconds", defaults.idle_timeout_seconds)
@@ -59,6 +61,8 @@ class VoicePlatformConfig:
             raise ValueError("max_connections должен быть в диапазоне 1..1000")
         if self.max_file_bytes < 1 or self.max_audio_chunk_bytes < 1:
             raise ValueError("Лимиты payload должны быть положительными")
+        if not 1 <= self.stt_workers <= self.max_connections:
+            raise ValueError("stt_workers должен быть в диапазоне 1..max_connections")
         if self.heartbeat_seconds <= 0 or self.idle_timeout_seconds <= 0:
             raise ValueError("Таймауты должны быть положительными")
         if self.idle_timeout_seconds <= self.heartbeat_seconds:

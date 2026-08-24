@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from aiohttp import WSMsgType, web
 
 from .config import VoicePlatformConfig
-from .connection import ClientConnection
+from .connection import AUDIO_SEQUENCE_BYTES, ClientConnection
 from .protocol import ProtocolError, parse_control_frame
 
 if TYPE_CHECKING:
@@ -68,7 +68,10 @@ class VoiceWSServer:
         ws = web.WebSocketResponse(
             heartbeat=self.config.heartbeat_seconds,
             receive_timeout=self.config.idle_timeout_seconds,
-            max_msg_size=max(self.config.max_audio_chunk_bytes, 64 * 1024),
+            max_msg_size=max(
+                self.config.max_audio_chunk_bytes + AUDIO_SEQUENCE_BYTES,
+                64 * 1024,
+            ),
         )
         await ws.prepare(request)
         connection = ClientConnection(ws)
@@ -79,7 +82,10 @@ class VoiceWSServer:
                 if message.type is WSMsgType.TEXT:
                     await self._handle_text(connection, message.data)
                 elif message.type is WSMsgType.BINARY:
-                    if len(message.data) > self.config.max_audio_chunk_bytes:
+                    frame_limit = self.config.max_audio_chunk_bytes
+                    if connection.context.active_audio_seq is not None:
+                        frame_limit += AUDIO_SEQUENCE_BYTES
+                    if len(message.data) > frame_limit:
                         raise ProtocolError("frame_too_large", "Бинарный кадр превышает лимит")
                     await self.adapter.handle_binary(connection, bytes(message.data))
                 elif message.type is WSMsgType.ERROR:

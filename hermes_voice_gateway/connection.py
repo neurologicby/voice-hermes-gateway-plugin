@@ -9,6 +9,8 @@ from typing import Any
 
 from .protocol import ControlMessage, MessageType, ProtocolError
 
+AUDIO_SEQUENCE_BYTES = 8
+
 
 class ConnectionState(StrEnum):
     UNPAIRED = "unpaired"
@@ -77,7 +79,22 @@ class ConnectionContext:
             raise ProtocolError("audio_disabled", "Приём аудио отключён")
         if self.active_audio_seq is not None:
             raise ProtocolError("audio_in_progress", "Предыдущая реплика не завершена")
+        if self.pending_file is not None:
+            raise ProtocolError("file_in_progress", "Сначала завершите передачу файла")
         self.active_audio_seq = seq
+
+    def parse_audio_chunk(self, payload: bytes) -> tuple[int, bytes]:
+        if self.active_audio_seq is None:
+            raise ProtocolError("binary_not_expected", "Аудио-реплика не была объявлена")
+        if len(payload) <= AUDIO_SEQUENCE_BYTES:
+            raise ProtocolError("invalid_audio_chunk", "Аудио-кадр не содержит PCM payload")
+        seq = int.from_bytes(payload[:AUDIO_SEQUENCE_BYTES], "big", signed=False)
+        if seq != self.active_audio_seq:
+            raise ProtocolError("stale_audio", "Аудио-кадр относится к устаревшей реплике")
+        pcm = payload[AUDIO_SEQUENCE_BYTES:]
+        if len(pcm) % 2:
+            raise ProtocolError("invalid_audio_chunk", "PCM S16LE должен содержать целые samples")
+        return seq, pcm
 
     def finish_audio(self, seq: int) -> None:
         if self.active_audio_seq != seq:
@@ -93,6 +110,8 @@ class ConnectionContext:
             raise ProtocolError("pair_required", "Файл требует авторизации")
         if self.pending_file is not None:
             raise ProtocolError("file_in_progress", "Предыдущий файл ещё не получен")
+        if self.active_audio_seq is not None:
+            raise ProtocolError("audio_in_progress", "Сначала завершите аудио-реплику")
         if size > max_bytes:
             raise ProtocolError("file_too_large", "Файл превышает допустимый размер")
         self.pending_file = PendingFile(name=name, mime=mime, size=size)
