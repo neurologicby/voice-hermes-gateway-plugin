@@ -128,7 +128,7 @@ def register_piper_provider() -> bool:
     """Регистрирует provider в фактическом streaming-реестре Hermes 0.20.5."""
 
     try:
-        from tools.tts_streaming import (  # type: ignore[import-untyped]
+        from tools.tts_streaming import (
             StreamingTTSProvider,
             register,
         )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 _PLUGIN_ROOT = Path(__file__).resolve().parent
 _DEPS_DIR = _PLUGIN_ROOT / "deps"
@@ -11,7 +12,7 @@ if _DEPS_DIR.is_dir() and str(_DEPS_DIR) not in sys.path:
     sys.path.insert(0, str(_DEPS_DIR))
 
 
-def register(ctx) -> None:
+def register(ctx: Any) -> None:
     """Регистрирует платформу через проверенный API Hermes 0.20.5."""
 
     from .hermes_voice_gateway.adapter import (

@@ -50,7 +50,14 @@ strict = true
 [[tool.mypy.overrides]]
 module = "gateway.*"
 ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "tools.*"
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "piper"
 ignore_missing_imports = true
+follow_imports = "skip"
