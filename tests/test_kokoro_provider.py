@@ -10,6 +10,7 @@ import pytest
 from hermes_voice_gateway.tts.kokoro_provider import (
     KokoroConfigurationError,
     KokoroPCMEngine,
+    _load_pipeline,
 )
 
 
@@ -71,3 +72,15 @@ def test_kokoro_rejects_invalid_artifacts_and_audio(tmp_path: Path) -> None:
     )
     with pytest.raises(KokoroConfigurationError):
         list(engine.stream("bad"))
+
+
+def test_kokoro_refuses_runtime_language_model_download(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "hermes_voice_gateway.tts.kokoro_provider.importlib.util.find_spec",
+        lambda _name: None,
+    )
+
+    with pytest.raises(KokoroConfigurationError, match="kept offline"):
+        _load_pipeline(tmp_path / "model.pth", tmp_path / "config.json", tmp_path / "voice.pt")

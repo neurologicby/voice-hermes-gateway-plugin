@@ -117,6 +117,11 @@ def register_kokoro_provider() -> bool:
 
 
 def _load_pipeline(model_path: Path, config_path: Path, _voice_path: Path) -> _Pipeline:
+    if importlib.util.find_spec("en_core_web_sm") is None:
+        raise KokoroConfigurationError(
+            "en-core-web-sm==3.8.0 is not installed in plugin deps; "
+            "Kokoro is kept offline and will not download it at runtime"
+        )
     try:
         from kokoro import KModel, KPipeline
     except ImportError as exc:

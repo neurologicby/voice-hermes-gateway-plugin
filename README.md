@@ -62,17 +62,30 @@ tts:
 English streaming TTS использует Apache-2.0 Kokoro 82M с голосом `af_heart` и
 регистрируется как `voice_kokoro`. Provider работает полностью офлайн: manifest
 обязан закрепить SHA-256 для `kokoro-v1_0.pth`, `config.json`, `af_heart.pt` и
-`LICENSE`; автоматические загрузки модели во время запуска запрещены.
+`LICENSE`; автоматические загрузки модели во время запуска запрещены. В voice extra
+также закреплена `en-core-web-sm==3.8.0`, необходимая для английского G2P. Готовый
+manifest находится в `model_manifests/kokoro-en-af-heart.json`, локальный bundle —
+в игнорируемом Git каталоге `models/kokoro-en-af-heart`.
 
 ```yaml
 tts:
   streaming:
     provider: voice_kokoro
   voice_kokoro:
-    manifest: /opt/hermes/models/kokoro-en/manifest.json
-    model_dir: /opt/hermes/models/kokoro-en
+    manifest: C:/path/to/plugin/model_manifests/kokoro-en-af-heart.json
+    model_dir: C:/path/to/plugin/models/kokoro-en-af-heart
     speed: 1.0
     chunk_ms: 100
+```
+
+Реальный офлайн probe сохраняет результат в WAV и печатает холодную загрузку,
+время синтеза и длительность аудио:
+
+```powershell
+python tools/tts_audio_probe.py `
+  model_manifests/kokoro-en-af-heart.json `
+  models/kokoro-en-af-heart `
+  build/kokoro-en-e2e.wav
 ```
 
 Для обычной работы с переключателем клиента используйте `voice_explicit`. Язык
