@@ -33,3 +33,6 @@ Source: `%LOCALAPPDATA%/hermes/hermes-agent` (только чтение).
 Проверка: `tools/hermes_contract_probe.py` импортирует адаптер против source baseline,
 проверяет отсутствие abstract methods, dynamic Platform и маршруты transport app.
 
+`tools/pairing_e2e_probe.py` использует временный `HERMES_HOME` и проверяет настоящий
+`PairingStore` через loopback WebSocket: `pair_code` → approve → `hello_ok` → revoke →
+`pair_required`. Пользовательская установка Hermes при этом не изменяется.

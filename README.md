@@ -13,6 +13,8 @@ Hermes commit `f3cda0ceb18d8ba7465a6d223098ef0e56c8fee1`.
 ```powershell
 .venv\Scripts\python.exe -m pytest plugin\tests -q
 .venv\Scripts\ruff.exe check plugin
+C:\Users\user\AppData\Roaming\uv\tools\hermes-agent\Scripts\python.exe `
+  plugin\tools\pairing_e2e_probe.py
 ```
 
 Runtime-зависимости целевой установки Hermes не модифицируются. Дополнительные
@@ -22,4 +24,3 @@ ML-зависимости и модели устанавливаются лок�
 
 Код распространяется по GNU GPL v3 или более поздней версии. Модели имеют
 собственные лицензии и включаются только после проверки model card/provenance.
-
