@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -22,6 +23,21 @@ class FakeAdapter:
         self.received.append(message.type)
         if message.type is MessageType.PING:
             await connection.send_json({"type": "pong", "t": message.payload["t"]})
+        elif message.type is MessageType.HELLO:
+            device_id = message.payload["device_id"]
+            connection.context.mark_ready(
+                device_id=device_id,
+                user_name=message.payload["user"],
+                chat_id=f"voice:{device_id}",
+            )
+            await connection.send_json({"type": "hello_ok", "session": f"voice:{device_id}"})
+        elif message.type is MessageType.FILE:
+            connection.context.start_file(
+                name=message.payload["name"],
+                mime=message.payload["mime"],
+                size=message.payload["size"],
+                max_bytes=100,
+            )
 
     async def handle_binary(self, connection: ClientConnection, payload: bytes) -> None:
         del connection, payload
@@ -76,6 +92,36 @@ async def test_application_message_is_rejected_before_pairing() -> None:
         assert response["type"] == "error"
         assert response["code"] == "pair_required"
         assert adapter.received == []
+        await ws.close()
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_control_frame_cancels_incomplete_file() -> None:
+    adapter = FakeAdapter()
+    client = await _client(adapter)
+    try:
+        ws = await client.ws_connect("/ws")
+        device_id = str(uuid4())
+        await ws.send_json(
+            {
+                "type": "hello",
+                "proto": 1,
+                "device_id": device_id,
+                "user": "Probe",
+                "client": "test/1",
+            }
+        )
+        assert (await ws.receive_json())["type"] == "hello_ok"
+        await ws.send_json(
+            {"type": "file", "name": "partial.txt", "mime": "text/plain", "size": 5}
+        )
+        await ws.send_bytes(b"he")
+        await ws.send_json({"type": "ping", "t": 1})
+        response = await ws.receive_json()
+        assert response["type"] == "error"
+        assert response["code"] == "binary_expected"
         await ws.close()
     finally:
         await client.close()

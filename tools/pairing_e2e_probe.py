@@ -117,7 +117,29 @@ async def _run() -> dict[str, object]:
                     and getattr(file_event, "media_types", None) == ["text/plain"]
                 )
 
-                result["revoked"] = store.revoke("voice", device_id)
+                async with session.ws_connect(url) as replacement:
+                    await replacement.send_json(
+                        {
+                            "type": "hello",
+                            "proto": 1,
+                            "device_id": device_id,
+                            "user": "Probe",
+                            "client": "pairing-e2e-probe/0.1",
+                        }
+                    )
+                    replacement_hello = await replacement.receive_json()
+                    result["reconnect_session_stable"] = (
+                        replacement_hello.get("session") == f"voice:{device_id}"
+                    )
+                    old_frame = await asyncio.wait_for(ws.receive(), timeout=2.0)
+                    result["old_connection_replaced"] = old_frame.type in {
+                        aiohttp.WSMsgType.CLOSE,
+                        aiohttp.WSMsgType.CLOSED,
+                        aiohttp.WSMsgType.CLOSING,
+                    }
+                    await replacement.send_json({"type": "ping", "t": 456})
+                    result["reconnect_ping"] = (await replacement.receive_json()).get("t")
+                    result["revoked"] = store.revoke("voice", device_id)
 
             async with session.ws_connect(url) as ws:
                 await ws.send_json(
@@ -154,6 +176,9 @@ def main() -> int:
         "agent_text": "phase one response",
         "agent_interim": "phase one draft",
         "file_received": True,
+        "reconnect_session_stable": True,
+        "old_connection_replaced": True,
+        "reconnect_ping": 456,
         "revoked": True,
         "hello_after_revoke": "pair_required",
     }
