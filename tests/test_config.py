@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+import pytest
+
+from hermes_voice_gateway.config import VoicePlatformConfig
+
+
+def test_defaults_are_loopback_and_bounded() -> None:
+    config = VoicePlatformConfig.from_mapping({})
+    assert config.host == "127.0.0.1"
+    assert config.port == 8765
+    assert config.max_connections == 10
+
+
+def test_public_bind_is_rejected() -> None:
+    with pytest.raises(ValueError, match="loopback"):
+        VoicePlatformConfig.from_mapping({"host": "0.0.0.0"})
+
+
+def test_trusted_proxies_are_parsed() -> None:
+    config = VoicePlatformConfig.from_mapping({"trusted_proxies": "127.0.0.1, 10.0.0.4"})
+    assert config.trusted_proxies == ("127.0.0.1", "10.0.0.4")

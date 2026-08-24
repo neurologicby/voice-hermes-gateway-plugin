@@ -1,0 +1,30 @@
+name: hermes-voice-gateway
+label: Voice WebSocket Gateway
+kind: platform
+version: 0.1.0
+description: >
+  Открытый голосовой WebSocket-шлюз для Hermes Agent с pairing,
+  потоковым STT/TTS и поддержкой русского и английского языков.
+author: VoiceGateway contributors
+optional_env:
+  - name: VOICE_GATEWAY_ENABLED
+    description: "Enable the platform (true/false)"
+    prompt: "Enable VoiceGateway?"
+    password: false
+  - name: VOICE_GATEWAY_HOST
+    description: "Loopback address (default: 127.0.0.1)"
+    prompt: "Bind address"
+    password: false
+  - name: VOICE_GATEWAY_PORT
+    description: "WebSocket port (default: 8765)"
+    prompt: "WebSocket port"
+    password: false
+  - name: VOICE_GATEWAY_ALLOWED_USERS
+    description: "Comma-separated approved device identifiers"
+    prompt: "Allowed devices"
+    password: false
+  - name: VOICE_GATEWAY_ALLOW_ALL_USERS
+    description: "Allow paired devices through Hermes authorization"
+    prompt: "Allow paired devices?"
+    password: false
+

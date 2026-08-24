@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-voice-gateway"
+version = "0.1.0"
+description = "Open-source WebSocket voice platform plugin for Hermes Agent"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "aiohttp==3.14.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==1.17.1",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "ruff==0.12.10",
+]
+voice = [
+    "numpy==2.4.3",
+    "onnxruntime==1.27.0",
+    "sherpa-onnx==1.13.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hermes_voice_gateway*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
