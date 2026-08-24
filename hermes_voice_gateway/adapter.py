@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -73,6 +74,15 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
     async def connect(self, *, is_reconnect: bool = False) -> bool:
         del is_reconnect
+        if self.stt.engine is None and self.voice_config.stt_manifest:
+            engine = await asyncio.to_thread(
+                _load_configured_stt,
+                self.voice_config.stt_manifest,
+                self.voice_config.stt_model_dir,
+                self.voice_config.stt_threads,
+            )
+            self.stt.engine = engine
+            self.stt_status = {"engine": engine.name, "ready": True}
         await self.server.start()
         self.ready = True
         self._mark_connected()
@@ -453,6 +463,18 @@ def check_requirements() -> bool:
     except ImportError:
         return False
     return True
+
+
+def _load_configured_stt(
+    manifest_path: str,
+    model_dir: str,
+    num_threads: int,
+) -> StreamingSTTEngine:
+    from .model_manifest import ModelManifest
+    from .sherpa_stt import SherpaStreamingSTTEngine
+
+    manifest = ModelManifest.load(Path(manifest_path))
+    return SherpaStreamingSTTEngine(manifest, Path(model_dir), num_threads=num_threads)
 
 
 def validate_config(config: PlatformConfig) -> bool:

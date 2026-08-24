@@ -20,3 +20,21 @@ def test_public_bind_is_rejected() -> None:
 def test_trusted_proxies_are_parsed() -> None:
     config = VoicePlatformConfig.from_mapping({"trusted_proxies": "127.0.0.1, 10.0.0.4"})
     assert config.trusted_proxies == ("127.0.0.1", "10.0.0.4")
+
+
+def test_stt_model_paths_must_be_configured_together() -> None:
+    with pytest.raises(ValueError, match="задаются вместе"):
+        VoicePlatformConfig.from_mapping({"stt_manifest": "manifest.json"})
+
+
+def test_stt_runtime_limits_are_parsed() -> None:
+    config = VoicePlatformConfig.from_mapping(
+        {
+            "stt_manifest": "manifest.json",
+            "stt_model_dir": "models/ru",
+            "stt_workers": 3,
+            "stt_threads": 2,
+        }
+    )
+    assert config.stt_workers == 3
+    assert config.stt_threads == 2

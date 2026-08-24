@@ -21,6 +21,10 @@ C:\Users\user\AppData\Roaming\uv\tools\hermes-agent\Scripts\python.exe `
 Runtime-зависимости целевой установки Hermes не модифицируются. Дополнительные
 ML-зависимости и модели устанавливаются локально в deploy-каталог плагина.
 
+Для локальной sherpa-модели задаются `stt_manifest` и `stt_model_dir` в
+`PlatformConfig.extra`. Manifest обязан перечислять `LICENSE`/`NOTICE` и SHA-256
+каждого artifact; загрузка recognizer выполняется вне event loop.
+
 ## Лицензия
 
 Код распространяется по GNU GPL v3 или более поздней версии. Модели имеют
