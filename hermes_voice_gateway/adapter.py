@@ -29,6 +29,7 @@ from .pairing import PairingService
 from .protocol import ControlMessage, ProtocolError
 from .protocol import MessageType as WireMessageType
 from .stt import StreamingSTTEngine, STTCoordinator, STTSessionMissing, STTUnavailable
+from .tts import selected_tts_language
 from .ws_server import VoiceWSServer
 
 
@@ -74,7 +75,7 @@ class VoiceGatewayAdapter(BasePlatformAdapter):  # type: ignore[misc]
             "vad": vad_engine.name if vad_engine is not None else "unloaded",
         }
         self.tts_status: dict[str, Any] = {
-            "engine": "voice_piper",
+            "engine": "voice_explicit",
             "transport_ready": False,
         }
 
@@ -463,10 +464,10 @@ class VoiceGatewayAdapter(BasePlatformAdapter):  # type: ignore[misc]
             final_message["metrics"] = metrics_wire
         await connection.send_json(final_message)
         if result.text:
-            await self._dispatch_transcript(connection, result.text, seq)
+            await self._dispatch_transcript(connection, result.text, seq, result.language)
 
     async def _dispatch_transcript(
-        self, connection: ClientConnection, text: str, seq: int
+        self, connection: ClientConnection, text: str, seq: int, language: str
     ) -> None:
         context = connection.context
         if context.state is not ConnectionState.READY or not context.chat_id:
@@ -484,7 +485,8 @@ class VoiceGatewayAdapter(BasePlatformAdapter):  # type: ignore[misc]
             source=source,
             raw_message={"transport": "voice-ws", "audio_seq": seq},
         )
-        await self.handle_message(event)
+        with selected_tts_language(language):
+            await self.handle_message(event)
 
     async def _dispatch_file(
         self, connection: ClientConnection, completed: CompletedFile

@@ -96,6 +96,24 @@ class PiperPCMEngine:
             yield output[offset : offset + self.chunk_bytes]
 
 
+def piper_engine_from_section(section: dict[str, Any]) -> PiperPCMEngine:
+    manifest_path = Path(str(section.get("manifest", "")))
+    model_dir = Path(str(section.get("model_dir", "")))
+    manifest = ModelManifest.load(manifest_path)
+    if manifest.family != "piper":
+        raise PiperConfigurationError("Configured manifest is not a Piper voice")
+    artifacts = manifest.verify(model_dir)
+    models = [path for path in artifacts.values() if path.suffix.lower() == ".onnx"]
+    configs = [path for path in artifacts.values() if path.name.lower().endswith(".onnx.json")]
+    if len(models) != 1 or len(configs) != 1:
+        raise PiperConfigurationError("Piper bundle needs one ONNX model and config")
+    return PiperPCMEngine(
+        models[0],
+        configs[0],
+        chunk_ms=int(section.get("chunk_ms", 100)),
+    )
+
+
 def _resample_s16le_mono(pcm: bytes, source_rate: int, target_rate: int) -> bytes:
     if source_rate <= 0 or target_rate <= 0 or len(pcm) % 2:
         raise PiperConfigurationError("Invalid PCM passed to Piper resampler")
@@ -150,25 +168,7 @@ def register_piper_provider() -> bool:
 
         def __init__(self, tts_config: dict[str, Any], section: dict[str, Any]) -> None:
             super().__init__(tts_config, section)
-            manifest_path = Path(str(section.get("manifest", "")))
-            model_dir = Path(str(section.get("model_dir", "")))
-            manifest = ModelManifest.load(manifest_path)
-            if manifest.family != "piper":
-                raise PiperConfigurationError("Configured manifest is not a Piper voice")
-            artifacts = manifest.verify(model_dir)
-            models = [path for path in artifacts.values() if path.suffix.lower() == ".onnx"]
-            configs = [
-                path
-                for path in artifacts.values()
-                if path.name.lower().endswith(".onnx.json")
-            ]
-            if len(models) != 1 or len(configs) != 1:
-                raise PiperConfigurationError("Piper bundle needs one ONNX model and config")
-            self._engine = PiperPCMEngine(
-                models[0],
-                configs[0],
-                chunk_ms=int(section.get("chunk_ms", 100)),
-            )
+            self._engine = piper_engine_from_section(section)
 
         def stream(self, text: str) -> Iterator[bytes]:
             yield from self._engine.stream(text)

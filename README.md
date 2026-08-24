@@ -75,6 +75,24 @@ tts:
     chunk_ms: 100
 ```
 
+Для обычной работы с переключателем клиента используйте `voice_explicit`. Язык
+берётся только из `audio_start.lang`; анализ текста и автоматическое определение
+языка не выполняются. Контекст изолирован для каждого параллельного voice turn.
+
+```yaml
+tts:
+  streaming:
+    provider: voice_explicit
+  voice_explicit:
+    ru:
+      manifest: /opt/hermes/models/piper-ru/manifest.json
+      model_dir: /opt/hermes/models/piper-ru
+    en:
+      manifest: /opt/hermes/models/kokoro-en/manifest.json
+      model_dir: /opt/hermes/models/kokoro-en
+      speed: 1.0
+```
+
 Manifest закрепляет MIT metadata репозитория, commit, model card и SHA-256
 `ru_RU-dmitri-medium`; dataset помечен CC0. Язык не определяется автоматически:
 RU/EN выбирается клиентом явно.
