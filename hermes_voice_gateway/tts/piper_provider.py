@@ -61,7 +61,7 @@ class PiperPCMEngine:
 
     @staticmethod
     def _load_piper_voice(model_path: Path, config_path: Path) -> _PiperVoice:
-        from piper import PiperVoice  # type: ignore[import-not-found]
+        from piper import PiperVoice
 
         return cast(_PiperVoice, PiperVoice.load(model_path, config_path=config_path))
 

@@ -12,9 +12,10 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 DEPS_ROOT = PLUGIN_ROOT / "deps"
-for entry in (DEPS_ROOT, PLUGIN_ROOT):
-    if entry.is_dir() and str(entry) not in sys.path:
-        sys.path.insert(0, str(entry))
+if str(PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_ROOT))
+if DEPS_ROOT.is_dir() and str(DEPS_ROOT) not in sys.path:
+    sys.path.append(str(DEPS_ROOT))
 
 from hermes_voice_gateway.model_manifest import ModelManifest  # noqa: E402
 from hermes_voice_gateway.sherpa_stt import SherpaStreamingSTTEngine  # noqa: E402

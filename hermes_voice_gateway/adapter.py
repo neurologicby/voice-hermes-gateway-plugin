@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from gateway.config import Platform, PlatformConfig
@@ -33,7 +33,7 @@ from .ws_server import VoiceWSServer
 
 
 @dataclass
-class VoiceStreamingTTSHandle(StreamingTTSHandle):
+class VoiceStreamingTTSHandle(StreamingTTSHandle):  # type: ignore[misc]
     stream_id: str = ""
     connection: ClientConnection | None = None
     finished: bool = False
@@ -43,7 +43,7 @@ class VoiceStreamingTTSHandle(StreamingTTSHandle):
     first_audio_ms: float | None = None
 
 
-class VoiceGatewayAdapter(BasePlatformAdapter):
+class VoiceGatewayAdapter(BasePlatformAdapter):  # type: ignore[misc]
     """WebSocket-платформа, использующая только штатные расширения Hermes."""
 
     supports_status_text = True
@@ -556,11 +556,14 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             if callable(profile_resolver)
             else getattr(self, "_owner_profile", None)
         )
-        return build_session_key(
-            source,
-            group_sessions_per_user=bool(extra.get("group_sessions_per_user", True)),
-            thread_sessions_per_user=bool(extra.get("thread_sessions_per_user", False)),
-            profile=profile,
+        return cast(
+            str,
+            build_session_key(
+                source,
+                group_sessions_per_user=bool(extra.get("group_sessions_per_user", True)),
+                thread_sessions_per_user=bool(extra.get("thread_sessions_per_user", False)),
+                profile=profile,
+            ),
         )
 
     def unbind(self, connection: ClientConnection) -> None:
