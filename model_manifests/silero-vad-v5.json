@@ -1,0 +1,20 @@
+{
+  "model_id": "silero-vad-v5",
+  "family": "silero_vad",
+  "language": "multi",
+  "sample_rate": 16000,
+  "license_spdx": "MIT",
+  "license_url": "https://github.com/snakers4/silero-vad/blob/master/LICENSE",
+  "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+  "source_sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+  "artifacts": [
+    {
+      "path": "silero-vad-v5.onnx",
+      "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "2e63e9a38b6e8fc0c7bc37ce174caca1862870856c6daf5697cfb785e925520b"
+    }
+  ]
+}

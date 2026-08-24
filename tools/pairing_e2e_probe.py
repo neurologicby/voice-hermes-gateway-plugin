@@ -76,11 +76,31 @@ async def _run() -> dict[str, object]:
             self.sessions.append(session)
             return session
 
+    class FakeVADSession:
+        def accept_pcm(self, pcm_s16le: bytes):
+            assert pcm_s16le
+            return type(
+                "VADResult",
+                (),
+                {"speech_started": True, "speech_ended": True},
+            )()
+
+        def cancel(self) -> None:
+            pass
+
+    class FakeVADEngine:
+        name = "fake-vad"
+
+        def create_session(self, *, sample_rate: int):
+            assert sample_rate == 16_000
+            return FakeVADSession()
+
     port = _free_loopback_port()
     stt_engine = FakeSTTEngine()
     adapter = VoiceGatewayAdapter(
         PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": port}),
         stt_engine=stt_engine,
+        vad_engine=FakeVADEngine(),
     )
     inbound_events: asyncio.Queue[object] = asyncio.Queue()
 
@@ -151,6 +171,8 @@ async def _run() -> dict[str, object]:
                 await ws.send_bytes((11).to_bytes(8, "big") + b"\x01\x00\x02\x00")
                 interim = await receive_type(ws, "interim")
                 result["voice_interim"] = interim.get("text")
+                endpoint = await receive_type(ws, "vad_endpoint")
+                result["voice_vad_endpoint"] = endpoint.get("seq")
                 await ws.send_json({"type": "audio_end", "seq": 11, "vad": "speech"})
                 final = await receive_type(ws, "final")
                 result["voice_final"] = final.get("text")
@@ -223,6 +245,7 @@ def main() -> int:
         "agent_interim": "phase one draft",
         "file_received": True,
         "voice_interim": "voice interim",
+        "voice_vad_endpoint": 11,
         "voice_final": "voice final",
         "voice_dispatched": "voice final",
         "voice_cancelled": True,

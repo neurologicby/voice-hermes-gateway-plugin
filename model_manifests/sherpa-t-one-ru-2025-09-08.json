@@ -6,7 +6,7 @@
   "license_spdx": "Apache-2.0",
   "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
   "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-t-one-russian-2025-09-08.tar.bz2",
-  "archive_sha256": "b9c907450e99a6e5049e279bf18368a17db0bdc5e63b7fa978943138debbe3ae",
+  "source_sha256": "b9c907450e99a6e5049e279bf18368a17db0bdc5e63b7fa978943138debbe3ae",
   "artifacts": [
     {
       "path": "model.onnx",

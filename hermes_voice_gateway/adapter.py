@@ -47,18 +47,24 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         config: PlatformConfig,
         *,
         stt_engine: StreamingSTTEngine | None = None,
+        vad_engine: Any | None = None,
     ):
         super().__init__(config=config, platform=Platform("voice"))
         self.voice_config = VoicePlatformConfig.from_mapping(getattr(config, "extra", {}) or {})
         self._pairing_profile: str | None = None
         self._pairing_service: PairingService | None = None
-        self.stt = STTCoordinator(stt_engine, max_workers=self.voice_config.stt_workers)
+        self.stt = STTCoordinator(
+            stt_engine,
+            vad_engine=vad_engine,
+            max_workers=self.voice_config.stt_workers,
+        )
         self.server = VoiceWSServer(self.voice_config, self)
         self._connections_by_chat: dict[str, ClientConnection] = {}
         self.ready = False
         self.stt_status: dict[str, Any] = {
             "engine": stt_engine.name if stt_engine is not None else "unloaded",
             "ready": stt_engine is not None,
+            "vad": vad_engine.name if vad_engine is not None else "unloaded",
         }
         self.tts_status: dict[str, Any] = {"engine": "unloaded"}
 
@@ -75,14 +81,50 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
     async def connect(self, *, is_reconnect: bool = False) -> bool:
         del is_reconnect
         if self.stt.engine is None and self.voice_config.stt_manifest:
-            engine = await asyncio.to_thread(
+            primary_engine = await asyncio.to_thread(
                 _load_configured_stt,
                 self.voice_config.stt_manifest,
                 self.voice_config.stt_model_dir,
                 self.voice_config.stt_threads,
             )
+            primary_language = str(primary_engine.manifest.language)
+            engines: dict[str, StreamingSTTEngine] = {primary_language: primary_engine}
+            if self.voice_config.stt_en_manifest:
+                english_engine = await asyncio.to_thread(
+                    _load_configured_stt,
+                    self.voice_config.stt_en_manifest,
+                    self.voice_config.stt_en_model_dir,
+                    self.voice_config.stt_threads,
+                )
+                english_language = str(english_engine.manifest.language)
+                engines[english_language] = english_engine
+            if len(engines) > 1:
+                from .stt import LanguageRoutingSTTEngine
+
+                engine: StreamingSTTEngine = LanguageRoutingSTTEngine(
+                    engines,
+                    auto_language=self.voice_config.stt_auto_language,
+                )
+            else:
+                engine = primary_engine
             self.stt.engine = engine
-            self.stt_status = {"engine": engine.name, "ready": True}
+            self.stt_status = {
+                "engine": engine.name,
+                "languages": sorted(engines),
+                "ready": True,
+            }
+        if self.stt.vad_engine is None and self.voice_config.vad_manifest:
+            vad_engine = await asyncio.to_thread(
+                _load_configured_vad,
+                self.voice_config.vad_manifest,
+                self.voice_config.vad_model_dir,
+                self.voice_config.vad_threshold,
+                self.voice_config.vad_min_silence_seconds,
+                self.voice_config.vad_min_speech_seconds,
+                self.voice_config.stt_threads,
+            )
+            self.stt.vad_engine = vad_engine
+            self.stt_status["vad"] = vad_engine.name
         await self.server.start()
         self.ready = True
         self._mark_connected()
@@ -239,13 +281,17 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             return
         seq, pcm = connection.context.parse_audio_chunk(payload)
         try:
-            interim = await self.stt.accept(id(connection), seq=seq, pcm_s16le=pcm)
+            update = await self.stt.accept(id(connection), seq=seq, pcm_s16le=pcm)
         except STTSessionMissing as exc:
             raise ProtocolError("stale_audio", "STT-сессия уже завершена") from exc
         except Exception as exc:
             raise ProtocolError("stt_failed", "Streaming STT не обработал аудио") from exc
-        if interim:
-            await connection.send_json({"type": "interim", "seq": seq, "text": interim})
+        if update.interim:
+            await connection.send_json(
+                {"type": "interim", "seq": seq, "text": update.interim}
+            )
+        if update.speech_ended:
+            await connection.send_json({"type": "vad_endpoint", "seq": seq})
 
     async def _on_pair_request(self, connection: ClientConnection, payload: dict[str, Any]) -> None:
         code = self.pairing.request_code(payload["device_id"], payload["user_name"])
@@ -331,8 +377,13 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         self, connection: ClientConnection, payload: dict[str, Any]
     ) -> None:
         seq = payload["seq"]
+        if connection.context.completed_audio_seq == seq:
+            return
         if connection.context.active_audio_seq != seq:
             raise ProtocolError("stale_audio", "Sequence не совпадает с активной репликой")
+        await self._finalize_audio(connection, seq)
+
+    async def _finalize_audio(self, connection: ClientConnection, seq: int) -> None:
         try:
             result = await self.stt.finish(id(connection), seq=seq)
         except STTSessionMissing as exc:
@@ -469,12 +520,34 @@ def _load_configured_stt(
     manifest_path: str,
     model_dir: str,
     num_threads: int,
-) -> StreamingSTTEngine:
+) -> Any:
     from .model_manifest import ModelManifest
     from .sherpa_stt import SherpaStreamingSTTEngine
 
     manifest = ModelManifest.load(Path(manifest_path))
     return SherpaStreamingSTTEngine(manifest, Path(model_dir), num_threads=num_threads)
+
+
+def _load_configured_vad(
+    manifest_path: str,
+    model_dir: str,
+    threshold: float,
+    min_silence_seconds: float,
+    min_speech_seconds: float,
+    num_threads: int,
+) -> Any:
+    from .model_manifest import ModelManifest
+    from .vad import SileroVADEngine
+
+    manifest = ModelManifest.load(Path(manifest_path))
+    return SileroVADEngine(
+        manifest,
+        Path(model_dir),
+        threshold=threshold,
+        min_silence_seconds=min_silence_seconds,
+        min_speech_seconds=min_speech_seconds,
+        num_threads=num_threads,
+    )
 
 
 def validate_config(config: PlatformConfig) -> bool:

@@ -51,6 +51,7 @@ class ConnectionContext:
     paused: bool = False
     mode: str = "voice_only"
     active_audio_seq: int | None = None
+    completed_audio_seq: int | None = None
     pending_file: PendingFile | None = None
     last_seen: float = field(default_factory=monotonic)
 
@@ -100,6 +101,7 @@ class ConnectionContext:
         if self.active_audio_seq != seq:
             raise ProtocolError("stale_audio", "Sequence не совпадает с активной репликой")
         self.active_audio_seq = None
+        self.completed_audio_seq = seq
 
     def interrupt(self) -> None:
         self.active_audio_seq = None

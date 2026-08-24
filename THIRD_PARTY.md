@@ -11,6 +11,8 @@
 | aiohttp 3.14.3 | WebSocket/HTTP transport | Apache-2.0 | разрешён; совпадает с Hermes messaging extra |
 | sherpa-onnx 1.13.4 | Streaming STT/KWS engine | Apache-2.0 | движок разрешён; каждую модель проверять отдельно |
 | sherpa T-One Russian 2025-09-08 | Streaming RU STT weights | Apache-2.0 | разрешён; LICENSE и SHA-256 зафиксированы в manifest |
+| sherpa Zipformer English 2023-06-26 int8 | Streaming EN STT weights | Apache-2.0 | разрешён; model card, LICENSE и SHA-256 зафиксированы |
+| Silero VAD v5 | Server/client endpoint detection | MIT | разрешён; ONNX и LICENSE закреплены SHA-256 |
 | Silero VAD | VAD ONNX | MIT | разрешён |
 | Piper (`piper1-gpl`) | Russian TTS engine | GPL-3.0 | разрешён для GPL-дистрибутива |
 | Kokoro-82M | English TTS model | Apache-2.0 | разрешён после фиксации checksum/версии |

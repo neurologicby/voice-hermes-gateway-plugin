@@ -19,6 +19,14 @@ class VoicePlatformConfig:
     stt_threads: int = 1
     stt_manifest: str = ""
     stt_model_dir: str = ""
+    stt_en_manifest: str = ""
+    stt_en_model_dir: str = ""
+    stt_auto_language: str = "ru"
+    vad_manifest: str = ""
+    vad_model_dir: str = ""
+    vad_threshold: float = 0.5
+    vad_min_silence_seconds: float = 0.6
+    vad_min_speech_seconds: float = 0.1
     heartbeat_seconds: float = 30.0
     idle_timeout_seconds: float = 90.0
     trusted_proxies: tuple[str, ...] = ()
@@ -48,6 +56,24 @@ class VoicePlatformConfig:
             stt_threads=int(values.get("stt_threads", defaults.stt_threads)),
             stt_manifest=str(values.get("stt_manifest", defaults.stt_manifest)).strip(),
             stt_model_dir=str(values.get("stt_model_dir", defaults.stt_model_dir)).strip(),
+            stt_en_manifest=str(
+                values.get("stt_en_manifest", defaults.stt_en_manifest)
+            ).strip(),
+            stt_en_model_dir=str(
+                values.get("stt_en_model_dir", defaults.stt_en_model_dir)
+            ).strip(),
+            stt_auto_language=str(
+                values.get("stt_auto_language", defaults.stt_auto_language)
+            ).strip(),
+            vad_manifest=str(values.get("vad_manifest", defaults.vad_manifest)).strip(),
+            vad_model_dir=str(values.get("vad_model_dir", defaults.vad_model_dir)).strip(),
+            vad_threshold=float(values.get("vad_threshold", defaults.vad_threshold)),
+            vad_min_silence_seconds=float(
+                values.get("vad_min_silence_seconds", defaults.vad_min_silence_seconds)
+            ),
+            vad_min_speech_seconds=float(
+                values.get("vad_min_speech_seconds", defaults.vad_min_speech_seconds)
+            ),
             heartbeat_seconds=float(values.get("heartbeat_seconds", defaults.heartbeat_seconds)),
             idle_timeout_seconds=float(
                 values.get("idle_timeout_seconds", defaults.idle_timeout_seconds)
@@ -73,6 +99,18 @@ class VoicePlatformConfig:
             raise ValueError("stt_threads должен быть в диапазоне 1..16")
         if bool(self.stt_manifest) != bool(self.stt_model_dir):
             raise ValueError("stt_manifest и stt_model_dir задаются вместе")
+        if bool(self.stt_en_manifest) != bool(self.stt_en_model_dir):
+            raise ValueError("stt_en_manifest и stt_en_model_dir задаются вместе")
+        if self.stt_en_manifest and not self.stt_manifest:
+            raise ValueError("English STT требует основной stt_manifest")
+        if self.stt_auto_language not in {"ru", "en"}:
+            raise ValueError("stt_auto_language должен быть ru или en")
+        if bool(self.vad_manifest) != bool(self.vad_model_dir):
+            raise ValueError("vad_manifest и vad_model_dir задаются вместе")
+        if not 0 < self.vad_threshold < 1:
+            raise ValueError("vad_threshold должен быть между 0 и 1")
+        if self.vad_min_silence_seconds <= 0 or self.vad_min_speech_seconds <= 0:
+            raise ValueError("VAD durations должны быть положительными")
         if self.heartbeat_seconds <= 0 or self.idle_timeout_seconds <= 0:
             raise ValueError("Таймауты должны быть положительными")
         if self.idle_timeout_seconds <= self.heartbeat_seconds:

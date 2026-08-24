@@ -43,6 +43,7 @@ def main() -> int:
     parser.add_argument("audio", type=Path)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--language", choices=("ru", "en"), required=True)
     args = parser.parse_args()
 
     source_rate, source_pcm = _read_pcm16_mono(args.audio)
@@ -51,7 +52,7 @@ def main() -> int:
     manifest = ModelManifest.load(args.manifest)
     engine = SherpaStreamingSTTEngine(manifest, args.model_dir)
     loaded = time.perf_counter()
-    session = engine.create_session(seq=1, language="ru", sample_rate=16_000)
+    session = engine.create_session(seq=1, language=args.language, sample_rate=16_000)
     interims: list[str] = []
     first_interim_ms: float | None = None
     chunk_bytes = 16_000 * 2 * 300 // 1000

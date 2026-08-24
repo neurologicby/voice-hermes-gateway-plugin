@@ -1,0 +1,36 @@
+{
+  "model_id": "sherpa-onnx-streaming-zipformer-en-2023-06-26-int8",
+  "family": "transducer",
+  "language": "en",
+  "sample_rate": 16000,
+  "license_spdx": "Apache-2.0",
+  "license_url": "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26",
+  "source_url": "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+  "source_sha256": "563fde436d16cf7607cf408cd6b30909819d03162652ef389c2450ced3f45ac1",
+  "artifacts": [
+    {
+      "path": "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+      "sha256": "563fde436d16cf7607cf408cd6b30909819d03162652ef389c2450ced3f45ac1"
+    },
+    {
+      "path": "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+      "sha256": "98da299f471e38bb4e1a8df579b8cc9122d6039576a77e357b3c60f17dd83b02"
+    },
+    {
+      "path": "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+      "sha256": "d944208d660d67c8d72cd2acaeac971fa5ceb8c80e76c1968148846fedd6e297"
+    },
+    {
+      "path": "tokens.txt",
+      "sha256": "49e3c2646595fd907228b3c6787069658f67b17377c60aeb8619c4551b2316fb"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c914dd28e23310a6dd345ea10495003d3e4820d2ed987181e4c2d67e501b6b76"
+    }
+  ]
+}

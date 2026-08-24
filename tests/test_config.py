@@ -38,3 +38,19 @@ def test_stt_runtime_limits_are_parsed() -> None:
     )
     assert config.stt_workers == 3
     assert config.stt_threads == 2
+
+
+def test_vad_model_paths_must_be_configured_together() -> None:
+    with pytest.raises(ValueError, match="задаются вместе"):
+        VoicePlatformConfig.from_mapping({"vad_model_dir": "models/vad"})
+
+
+def test_vad_endpoint_defaults_match_protocol() -> None:
+    config = VoicePlatformConfig.from_mapping({})
+    assert config.vad_threshold == 0.5
+    assert config.vad_min_silence_seconds == 0.6
+
+
+def test_english_stt_paths_must_be_configured_together() -> None:
+    with pytest.raises(ValueError, match="задаются вместе"):
+        VoicePlatformConfig.from_mapping({"stt_en_manifest": "en.json"})

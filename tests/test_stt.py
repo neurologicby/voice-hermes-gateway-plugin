@@ -5,6 +5,8 @@ import threading
 import pytest
 
 from hermes_voice_gateway.stt import (
+    LanguageRoutingSTTEngine,
+    STTChunkResult,
     STTCoordinator,
     STTResult,
     STTSessionMissing,
@@ -47,6 +49,29 @@ class FakeEngine:
         return session
 
 
+class FakeVADSession:
+    def __init__(self) -> None:
+        self.cancelled = False
+
+    def accept_pcm(self, pcm_s16le: bytes) -> object:
+        del pcm_s16le
+        return type("Result", (), {"speech_started": True, "speech_ended": True})()
+
+    def cancel(self) -> None:
+        self.cancelled = True
+
+
+class FakeVADEngine:
+    def __init__(self) -> None:
+        self.sessions: list[FakeVADSession] = []
+
+    def create_session(self, *, sample_rate: int) -> FakeVADSession:
+        assert sample_rate == 16_000
+        session = FakeVADSession()
+        self.sessions.append(session)
+        return session
+
+
 @pytest.mark.asyncio
 async def test_stt_lifecycle_runs_in_worker_thread() -> None:
     engine = FakeEngine()
@@ -54,12 +79,27 @@ async def test_stt_lifecycle_runs_in_worker_thread() -> None:
     event_loop_thread = threading.get_ident()
 
     await coordinator.start(1, seq=7, language="ru")
-    assert await coordinator.accept(1, seq=7, pcm_s16le=b"\x01\x00") == "interim"
+    assert await coordinator.accept(1, seq=7, pcm_s16le=b"\x01\x00") == STTChunkResult(
+        interim="interim"
+    )
     result = await coordinator.finish(1, seq=7)
 
     assert result == STTResult(seq=7, text="final", language="ru")
     assert engine.sessions[0].thread_ids
     assert event_loop_thread not in engine.sessions[0].thread_ids
+
+
+@pytest.mark.asyncio
+async def test_vad_endpoint_is_returned_and_cancelled_with_stt() -> None:
+    vad = FakeVADEngine()
+    coordinator = STTCoordinator(FakeEngine(), vad_engine=vad)
+    await coordinator.start(1, seq=7, language="ru")
+    update = await coordinator.accept(1, seq=7, pcm_s16le=b"\x01\x00")
+    assert update == STTChunkResult(
+        interim="interim", speech_started=True, speech_ended=True
+    )
+    await coordinator.finish(1, seq=7)
+    assert vad.sessions[0].cancelled is True
 
 
 @pytest.mark.asyncio
@@ -85,3 +125,19 @@ async def test_cancel_is_idempotent() -> None:
     await coordinator.cancel(1)
     await coordinator.cancel(1)
     assert engine.sessions[0].cancelled is True
+
+
+def test_language_router_selects_explicit_and_auto_engine() -> None:
+    ru = FakeEngine()
+    en = FakeEngine()
+    router = LanguageRoutingSTTEngine({"ru": ru, "en": en}, auto_language="ru")
+    router.create_session(seq=1, language="auto", sample_rate=16_000)
+    router.create_session(seq=2, language="en", sample_rate=16_000)
+    assert ru.sessions[0].language == "ru"
+    assert en.sessions[0].language == "en"
+
+
+def test_language_router_rejects_unconfigured_language() -> None:
+    router = LanguageRoutingSTTEngine({"ru": FakeEngine()})
+    with pytest.raises(STTUnavailable, match="not configured"):
+        router.create_session(seq=1, language="en", sample_rate=16_000)

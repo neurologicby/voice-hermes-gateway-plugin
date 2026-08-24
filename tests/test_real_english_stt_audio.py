@@ -9,14 +9,16 @@ from pathlib import Path
 import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-MODEL_DIR = PLUGIN_ROOT / "models" / "sherpa-onnx-streaming-t-one-russian-2025-09-08"
+MODEL_DIR = (
+    PLUGIN_ROOT / "models" / "sherpa-onnx-streaming-zipformer-en-2023-06-26-int8"
+)
 SAMPLE = MODEL_DIR / "0.wav"
 DEPS = PLUGIN_ROOT / "deps" / "sherpa_onnx"
 
 
-def test_verified_t_one_model_transcribes_real_audio_with_fast_interim() -> None:
+def test_verified_zipformer_transcribes_real_english_audio() -> None:
     if not SAMPLE.is_file() or not DEPS.is_dir():
-        pytest.skip("local verified sherpa model/deps are not installed")
+        pytest.skip("local verified English sherpa model/deps are not installed")
     environment = dict(os.environ)
     environment["PYTHONUTF8"] = "1"
     completed = subprocess.run(
@@ -25,11 +27,11 @@ def test_verified_t_one_model_transcribes_real_audio_with_fast_interim() -> None
             str(PLUGIN_ROOT / "tools" / "stt_audio_probe.py"),
             str(SAMPLE),
             "--manifest",
-            str(PLUGIN_ROOT / "model_manifests" / "sherpa-t-one-ru-2025-09-08.json"),
+            str(PLUGIN_ROOT / "model_manifests" / "sherpa-zipformer-en-2023-06-26-int8.json"),
             "--model-dir",
             str(MODEL_DIR),
             "--language",
-            "ru",
+            "en",
         ],
         check=True,
         capture_output=True,
@@ -40,5 +42,5 @@ def test_verified_t_one_model_transcribes_real_audio_with_fast_interim() -> None
     )
     report = json.loads(completed.stdout)
     assert report["first_interim_ms"] <= 400
-    assert "бригада" in report["final"]
-    assert "я жду" in report["final"]
+    assert "early nightfall" in report["final"].lower()
+    assert "yellow lamps" in report["final"].lower()

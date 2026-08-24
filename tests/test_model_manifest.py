@@ -31,7 +31,7 @@ def _write_manifest(model_dir: Path, *, license_spdx: str = "Apache-2.0") -> Pat
                 "license_spdx": license_spdx,
                 "license_url": "https://example.test/license",
                 "source_url": "https://example.test/model",
-                "archive_sha256": "0" * 64,
+                "source_sha256": "0" * 64,
                 "artifacts": artifacts,
             }
         ),

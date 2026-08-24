@@ -28,7 +28,7 @@ class ModelManifest:
     license_spdx: str
     license_url: str
     source_url: str
-    archive_sha256: str
+    source_sha256: str
     artifacts: tuple[ModelArtifact, ...]
 
     @classmethod
@@ -50,7 +50,7 @@ class ModelManifest:
             "license_spdx",
             "license_url",
             "source_url",
-            "archive_sha256",
+            "source_sha256",
         )
         values: dict[str, str] = {}
         for key in required_strings:
@@ -60,10 +60,10 @@ class ModelManifest:
             values[key] = value.strip()
         if values["license_spdx"] not in ALLOWED_MODEL_LICENSES:
             raise STTUnavailable(f"Model license is not allowlisted: {values['license_spdx']}")
-        if values["family"] not in {"t_one_ctc", "transducer"}:
+        if values["family"] not in {"silero_vad", "t_one_ctc", "transducer"}:
             raise STTUnavailable(f"Unsupported sherpa model family: {values['family']}")
-        if not _valid_sha256(values["archive_sha256"]):
-            raise STTUnavailable("Model archive_sha256 must be SHA-256")
+        if not _valid_sha256(values["source_sha256"]):
+            raise STTUnavailable("Model source_sha256 must be SHA-256")
         sample_rate = payload.get("sample_rate")
         if not isinstance(sample_rate, int) or isinstance(sample_rate, bool) or sample_rate <= 0:
             raise STTUnavailable("Model sample_rate must be a positive integer")
