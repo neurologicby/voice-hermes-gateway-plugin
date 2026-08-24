@@ -109,7 +109,7 @@ class SherpaSTTSession:
 
     def finish(self) -> STTResult:
         if not self._closed:
-            tail = self._numpy.zeros(int(self._model_rate * 0.5), dtype="float32")
+            tail = self._numpy.zeros(int(self._model_rate * 1.0), dtype="float32")
             self._stream.accept_waveform(self._model_rate, tail)
             self._stream.input_finished()
             self._decode_ready()

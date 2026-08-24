@@ -10,6 +10,7 @@
 | Hermes Agent 0.20.5 | Host API, не включается в плагин | MIT | разрешён |
 | aiohttp 3.14.3 | WebSocket/HTTP transport | Apache-2.0 | разрешён; совпадает с Hermes messaging extra |
 | sherpa-onnx 1.13.4 | Streaming STT/KWS engine | Apache-2.0 | движок разрешён; каждую модель проверять отдельно |
+| sherpa T-One Russian 2025-09-08 | Streaming RU STT weights | Apache-2.0 | разрешён; LICENSE и SHA-256 зафиксированы в manifest |
 | Silero VAD | VAD ONNX | MIT | разрешён |
 | Piper (`piper1-gpl`) | Russian TTS engine | GPL-3.0 | разрешён для GPL-дистрибутива |
 | Kokoro-82M | English TTS model | Apache-2.0 | разрешён после фиксации checksum/версии |

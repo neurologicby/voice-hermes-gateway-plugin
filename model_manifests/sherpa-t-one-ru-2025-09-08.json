@@ -1,0 +1,28 @@
+{
+  "model_id": "sherpa-onnx-streaming-t-one-russian-2025-09-08",
+  "family": "t_one_ctc",
+  "language": "ru",
+  "sample_rate": 8000,
+  "license_spdx": "Apache-2.0",
+  "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+  "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-t-one-russian-2025-09-08.tar.bz2",
+  "archive_sha256": "b9c907450e99a6e5049e279bf18368a17db0bdc5e63b7fa978943138debbe3ae",
+  "artifacts": [
+    {
+      "path": "model.onnx",
+      "sha256": "5ded080e2a6c86ecc11bcb0902d77524eb3e8b0844cb0c0754347f5aafb4dabc"
+    },
+    {
+      "path": "tokens.txt",
+      "sha256": "27f7b3ba2096c572375fba1a6b29af1f80d86e08a329940612908112695f97e0"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "c8e6ecb86af681d9815d1ada7b1a7780ea5e5cb68a5df94fc800adab1a6ce027"
+    },
+    {
+      "path": "README.md",
+      "sha256": "13da1cf18473853706b9b512ec32d572a1a70a264b18bf31cb8391564b22c433"
+    }
+  ]
+}

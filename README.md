@@ -25,6 +25,17 @@ ML-зависимости и модели устанавливаются лок�
 `PlatformConfig.extra`. Manifest обязан перечислять `LICENSE`/`NOTICE` и SHA-256
 каждого artifact; загрузка recognizer выполняется вне event loop.
 
+Проверенный русский bundle описан в
+`model_manifests/sherpa-t-one-ru-2025-09-08.json`. Он использует Apache-2.0,
+принимает потоковые 8 кГц features (вход protocol v1 остаётся 16 кГц) и не
+коммитится вместе с весами. Локальный smoke-test запускается так:
+
+```powershell
+.venv\Scripts\python.exe plugin\tools\stt_audio_probe.py <record.wav> `
+  --manifest plugin\model_manifests\sherpa-t-one-ru-2025-09-08.json `
+  --model-dir plugin\models\sherpa-onnx-streaming-t-one-russian-2025-09-08
+```
+
 ## Лицензия
 
 Код распространяется по GNU GPL v3 или более поздней версии. Модели имеют

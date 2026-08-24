@@ -43,6 +43,7 @@ def _bundle(tmp_path: Path) -> tuple[ModelManifest, Path]:
         license_spdx="Apache-2.0",
         license_url="https://example.test/license",
         source_url="https://example.test/model",
+        archive_sha256="0" * 64,
         artifacts=tuple(artifacts),
     )
     return manifest, tmp_path

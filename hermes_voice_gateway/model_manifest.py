@@ -28,6 +28,7 @@ class ModelManifest:
     license_spdx: str
     license_url: str
     source_url: str
+    archive_sha256: str
     artifacts: tuple[ModelArtifact, ...]
 
     @classmethod
@@ -49,6 +50,7 @@ class ModelManifest:
             "license_spdx",
             "license_url",
             "source_url",
+            "archive_sha256",
         )
         values: dict[str, str] = {}
         for key in required_strings:
@@ -60,6 +62,8 @@ class ModelManifest:
             raise STTUnavailable(f"Model license is not allowlisted: {values['license_spdx']}")
         if values["family"] not in {"t_one_ctc", "transducer"}:
             raise STTUnavailable(f"Unsupported sherpa model family: {values['family']}")
+        if not _valid_sha256(values["archive_sha256"]):
+            raise STTUnavailable("Model archive_sha256 must be SHA-256")
         sample_rate = payload.get("sample_rate")
         if not isinstance(sample_rate, int) or isinstance(sample_rate, bool) or sample_rate <= 0:
             raise STTUnavailable("Model sample_rate must be a positive integer")
@@ -81,10 +85,8 @@ class ModelManifest:
             raise STTUnavailable("Model artifact path must be safe and relative")
         if not isinstance(digest, str) or len(digest) != 64:
             raise STTUnavailable(f"Model artifact {path!r} requires SHA-256")
-        try:
-            int(digest, 16)
-        except ValueError as exc:
-            raise STTUnavailable(f"Model artifact {path!r} has invalid SHA-256") from exc
+        if not _valid_sha256(digest):
+            raise STTUnavailable(f"Model artifact {path!r} has invalid SHA-256")
         return ModelArtifact(path=path, sha256=digest.lower())
 
     def verify(self, model_dir: Path) -> dict[str, Path]:
@@ -112,6 +114,16 @@ class ModelManifest:
 def _safe_relative_path(value: str) -> bool:
     path = PurePosixPath(value)
     return bool(value) and not path.is_absolute() and ".." not in path.parts and "\\" not in value
+
+
+def _valid_sha256(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
 
 
 def _sha256_file(path: Path) -> str:
