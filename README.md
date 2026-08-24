@@ -59,6 +59,22 @@ tts:
     chunk_ms: 100
 ```
 
+English streaming TTS использует Apache-2.0 Kokoro 82M с голосом `af_heart` и
+регистрируется как `voice_kokoro`. Provider работает полностью офлайн: manifest
+обязан закрепить SHA-256 для `kokoro-v1_0.pth`, `config.json`, `af_heart.pt` и
+`LICENSE`; автоматические загрузки модели во время запуска запрещены.
+
+```yaml
+tts:
+  streaming:
+    provider: voice_kokoro
+  voice_kokoro:
+    manifest: /opt/hermes/models/kokoro-en/manifest.json
+    model_dir: /opt/hermes/models/kokoro-en
+    speed: 1.0
+    chunk_ms: 100
+```
+
 Manifest закрепляет MIT metadata репозитория, commit, model card и SHA-256
 `ru_RU-dmitri-medium`; dataset помечен CC0. Язык не определяется автоматически:
 RU/EN выбирается клиентом явно.

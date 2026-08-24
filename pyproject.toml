@@ -21,6 +21,7 @@ dev = [
     "ruff==0.12.10",
 ]
 voice = [
+    "kokoro==0.9.4",
     "numpy==2.4.3",
     "onnxruntime==1.27.0",
     "piper-tts==1.4.2",
@@ -59,5 +60,10 @@ follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "piper"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "kokoro"
 ignore_missing_imports = true
 follow_imports = "skip"

@@ -62,7 +62,13 @@ class ModelManifest:
             values[key] = value.strip()
         if values["license_spdx"] not in ALLOWED_MODEL_LICENSES:
             raise STTUnavailable(f"Model license is not allowlisted: {values['license_spdx']}")
-        if values["family"] not in {"piper", "silero_vad", "t_one_ctc", "transducer"}:
+        if values["family"] not in {
+            "kokoro",
+            "piper",
+            "silero_vad",
+            "t_one_ctc",
+            "transducer",
+        }:
             raise STTUnavailable(f"Unsupported local model family: {values['family']}")
         if not _valid_sha256(values["source_sha256"]):
             raise STTUnavailable("Model source_sha256 must be SHA-256")
