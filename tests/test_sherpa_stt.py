@@ -90,4 +90,4 @@ def test_engine_rejects_non_integral_resampling_ratio(tmp_path: Path) -> None:
         numpy_module=object(),
     )
     with pytest.raises(STTUnavailable, match="ratio"):
-        engine.create_session(seq=7, language="auto", sample_rate=11_025)
+        engine.create_session(seq=7, language="ru", sample_rate=11_025)

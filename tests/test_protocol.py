@@ -50,3 +50,9 @@ def test_invalid_file_mime_is_rejected() -> None:
 def test_boolean_is_not_accepted_as_sequence() -> None:
     with pytest.raises(ProtocolError):
         parse_control_frame('{"type":"audio_end","seq":true}')
+
+
+def test_auto_stt_language_is_rejected() -> None:
+    with pytest.raises(ProtocolError) as captured:
+        parse_control_frame('{"type":"audio_start","seq":1,"lang":"auto"}')
+    assert captured.value.code == "invalid_audio_language"

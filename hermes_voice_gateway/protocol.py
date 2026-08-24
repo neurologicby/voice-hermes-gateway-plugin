@@ -142,8 +142,8 @@ def _validate_text(data: dict[str, Any]) -> None:
 
 def _validate_audio_start(data: dict[str, Any]) -> None:
     _positive_int(data, "seq")
-    if data.get("lang") not in {"auto", "ru", "en"}:
-        raise ProtocolError("invalid_field", "lang должен быть auto, ru или en")
+    if data.get("lang") not in {"ru", "en"}:
+        raise ProtocolError("invalid_audio_language", "lang должен быть ru или en")
 
 
 def _validate_audio_end(data: dict[str, Any]) -> None:

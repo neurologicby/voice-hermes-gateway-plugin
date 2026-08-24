@@ -167,7 +167,7 @@ async def _run() -> dict[str, object]:
                     and getattr(file_event, "media_types", None) == ["text/plain"]
                 )
 
-                await ws.send_json({"type": "audio_start", "seq": 11, "lang": "auto"})
+                await ws.send_json({"type": "audio_start", "seq": 11, "lang": "ru"})
                 await ws.send_bytes((11).to_bytes(8, "big") + b"\x01\x00\x02\x00")
                 interim = await receive_type(ws, "interim")
                 result["voice_interim"] = interim.get("text")
@@ -179,7 +179,7 @@ async def _run() -> dict[str, object]:
                 voice_event = await asyncio.wait_for(inbound_events.get(), timeout=2.0)
                 result["voice_dispatched"] = getattr(voice_event, "text", "")
 
-                await ws.send_json({"type": "audio_start", "seq": 12, "lang": "auto"})
+                await ws.send_json({"type": "audio_start", "seq": 12, "lang": "ru"})
                 await ws.send_json({"type": "interrupt"})
                 await ws.send_json({"type": "ping", "t": 12})
                 await receive_type(ws, "pong")

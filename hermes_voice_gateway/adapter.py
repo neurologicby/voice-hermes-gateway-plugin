@@ -103,7 +103,6 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
                 engine: StreamingSTTEngine = LanguageRoutingSTTEngine(
                     engines,
-                    auto_language=self.voice_config.stt_auto_language,
                 )
             else:
                 engine = primary_engine

@@ -21,7 +21,6 @@ class VoicePlatformConfig:
     stt_model_dir: str = ""
     stt_en_manifest: str = ""
     stt_en_model_dir: str = ""
-    stt_auto_language: str = "ru"
     vad_manifest: str = ""
     vad_model_dir: str = ""
     vad_threshold: float = 0.5
@@ -62,9 +61,6 @@ class VoicePlatformConfig:
             stt_en_model_dir=str(
                 values.get("stt_en_model_dir", defaults.stt_en_model_dir)
             ).strip(),
-            stt_auto_language=str(
-                values.get("stt_auto_language", defaults.stt_auto_language)
-            ).strip(),
             vad_manifest=str(values.get("vad_manifest", defaults.vad_manifest)).strip(),
             vad_model_dir=str(values.get("vad_model_dir", defaults.vad_model_dir)).strip(),
             vad_threshold=float(values.get("vad_threshold", defaults.vad_threshold)),
@@ -103,8 +99,6 @@ class VoicePlatformConfig:
             raise ValueError("stt_en_manifest и stt_en_model_dir задаются вместе")
         if self.stt_en_manifest and not self.stt_manifest:
             raise ValueError("English STT требует основной stt_manifest")
-        if self.stt_auto_language not in {"ru", "en"}:
-            raise ValueError("stt_auto_language должен быть ru или en")
         if bool(self.vad_manifest) != bool(self.vad_model_dir):
             raise ValueError("vad_manifest и vad_model_dir задаются вместе")
         if not 0 < self.vad_threshold < 1:

@@ -63,15 +63,10 @@ class LanguageRoutingSTTEngine:
     def __init__(
         self,
         engines: dict[str, StreamingSTTEngine],
-        *,
-        auto_language: str = "ru",
     ) -> None:
         if not engines or any(language not in {"ru", "en"} for language in engines):
             raise ValueError("STT router supports only non-empty ru/en engine mapping")
-        if auto_language not in engines:
-            raise ValueError("auto_language must have a configured engine")
         self.engines = dict(engines)
-        self.auto_language = auto_language
 
     def create_session(
         self,
@@ -80,11 +75,10 @@ class LanguageRoutingSTTEngine:
         language: str,
         sample_rate: int,
     ) -> SyncStreamingSTTSession:
-        selected = self.auto_language if language == "auto" else language
-        engine = self.engines.get(selected)
+        engine = self.engines.get(language)
         if engine is None:
-            raise STTUnavailable(f"STT language is not configured: {selected}")
-        return engine.create_session(seq=seq, language=selected, sample_rate=sample_rate)
+            raise STTUnavailable(f"STT language is not configured: {language}")
+        return engine.create_session(seq=seq, language=language, sample_rate=sample_rate)
 
 
 class STTCoordinator:

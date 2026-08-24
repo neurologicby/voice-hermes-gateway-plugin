@@ -54,7 +54,7 @@ class SherpaStreamingSTTEngine:
             )
 
     def create_session(self, *, seq: int, language: str, sample_rate: int) -> SherpaSTTSession:
-        if language not in {"auto", self.manifest.language}:
+        if language != self.manifest.language:
             raise STTUnavailable(f"Model does not support language: {language}")
         if sample_rate % self.manifest.sample_rate != 0:
             raise STTUnavailable("Input/model sample-rate ratio must be an integer")

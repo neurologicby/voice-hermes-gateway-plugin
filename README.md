@@ -41,9 +41,9 @@ ML-зависимости и модели устанавливаются лок�
 `model_manifests/sherpa-zipformer-en-2023-06-26-int8.json`, Silero VAD — в
 `model_manifests/silero-vad-v5.json`. Для двуязычного сервера основной RU bundle
 задаётся через `stt_manifest`/`stt_model_dir`, английский — через
-`stt_en_manifest`/`stt_en_model_dir`; `stt_auto_language` определяет безопасный
-fallback для `lang:auto`. VAD использует `vad_manifest`/`vad_model_dir` и по
-умолчанию предлагает endpoint после 600 мс тишины.
+`stt_en_manifest`/`stt_en_model_dir`. Клиент обязан явно передавать `lang:ru` или
+`lang:en`; автоматическое определение не используется. VAD задаётся через
+`vad_manifest`/`vad_model_dir` и по умолчанию предлагает endpoint после 600 мс тишины.
 
 ## Лицензия
 
