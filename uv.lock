@@ -664,6 +664,7 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "numpy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -683,6 +684,7 @@ requires-dist = [
     { name = "en-core-web-sm", marker = "extra == 'voice'", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "kokoro", marker = "extra == 'voice'", specifier = "==0.9.4" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==1.17.1" },
+    { name = "numpy", marker = "extra == 'dev'", specifier = "==2.4.3" },
     { name = "numpy", marker = "extra == 'voice'", specifier = "==2.4.3" },
     { name = "onnxruntime", marker = "extra == 'voice'", specifier = "==1.27.0" },
     { name = "piper-tts", marker = "extra == 'voice'", specifier = "==1.4.2" },
