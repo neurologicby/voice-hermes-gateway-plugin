@@ -34,6 +34,24 @@ LLM в этом probe заменён детерминированным message 
 Runtime-зависимости целевой установки Hermes не модифицируются. Дополнительные
 ML-зависимости и модели устанавливаются локально в deploy-каталог плагина.
 
+## Установка из GitHub
+
+После публикации отдельного репозитория плагин устанавливается штатным менеджером
+Hermes без правок ядра:
+
+```powershell
+hermes plugins install OWNER/hermes-voice-gateway --enable
+```
+
+Репозиторий пока не имеет настроенного GitHub remote, поэтому `OWNER` будет заменён
+после выбора организации или аккаунта. GitHub workflow проверяет unit-тесты и
+контракт с актуальным `nousresearch/hermes-agent` при каждом push/PR.
+
+ML-веса не коммитятся в Git. Публичному релизу потребуется отдельный checksum-verified
+bootstrap для установки зависимостей в `deps/` и загрузки выбранных RU/EN model
+bundles в `models/`. До появления этого bootstrap простой `plugins install` ставит
+код и регистрирует плагин, но ещё не подготавливает STT/TTS runtime автоматически.
+
 Для локальной sherpa-модели задаются `stt_manifest` и `stt_model_dir` в
 `PlatformConfig.extra`. Manifest обязан перечислять `LICENSE`/`NOTICE` и SHA-256
 каждого artifact; загрузка recognizer выполняется вне event loop.
