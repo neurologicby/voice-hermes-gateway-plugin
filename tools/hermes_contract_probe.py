@@ -17,9 +17,11 @@ HERMES_SOURCE = Path(
     )
 )
 DEV_SITE_PACKAGES = WORKSPACE_ROOT / ".venv" / "Lib" / "site-packages"
+PLUGIN_DEPS = PLUGIN_ROOT / "deps"
 if DEV_SITE_PACKAGES.is_dir():
     sys.path.insert(0, str(DEV_SITE_PACKAGES))
 sys.path.insert(0, str(PLUGIN_ROOT))
+sys.path.insert(0, str(PLUGIN_DEPS))
 sys.path.insert(0, str(HERMES_SOURCE))
 
 
@@ -46,6 +48,10 @@ def main() -> int:
         )
 
         from hermes_voice_gateway.adapter import VoiceGatewayAdapter
+        from hermes_voice_gateway.tts import register_piper_provider
+        from tools import tts_streaming
+
+        provider_registered = register_piper_provider()
 
         adapter = VoiceGatewayAdapter(
             PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": 8765})
@@ -66,6 +72,9 @@ def main() -> int:
             "pairing_profile": adapter._pairing_profile,
             "session_key": adapter._build_session_key(source),
             "routes": paths,
+            "streaming_provider_registered": bool(
+                provider_registered and "voice_piper" in tts_streaming._REGISTRY
+            ),
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         compatible = (
@@ -73,6 +82,7 @@ def main() -> int:
             and not result["abstract_methods"]
             and result["pairing_profile"] == "contract-profile"
             and str(result["session_key"]).startswith("agent:contract-profile:")
+            and result["streaming_provider_registered"]
         )
         return 0 if compatible else 1
 

@@ -3,8 +3,8 @@
 Открытый platform-плагин для Hermes Agent 0.20.5, добавляющий голосовой
 WebSocket-канал с pairing, streaming STT/TTS, barge-in, текстом и файлами.
 
-Фазы 0–1 завершены локальными contract/E2E probes; реализуется Фаза 2
-(streaming STT). Контракты интеграции сверены с
+Фазы 0–2 завершены локальными contract/E2E probes; реализуется Фаза 3
+(streaming TTS и barge-in). Контракты интеграции сверены с
 Hermes commit `ddbd928ee4e881f0c7b3536a00355647c6559fe2`.
 
 ## Разработка
@@ -44,6 +44,24 @@ ML-зависимости и модели устанавливаются лок�
 `stt_en_manifest`/`stt_en_model_dir`. Клиент обязан явно передавать `lang:ru` или
 `lang:en`; автоматическое определение не используется. VAD задаётся через
 `vad_manifest`/`vad_model_dir` и по умолчанию предлагает endpoint после 600 мс тишины.
+
+Русский streaming TTS использует `piper-tts==1.4.2` и зарегистрирован в штатном
+реестре Hermes под именем `voice_piper`. Движок загружается лениво в worker thread,
+а PCM голоса 22,05 кГц преобразуется в protocol v1 PCM 24 кГц. Пример Hermes config:
+
+```yaml
+tts:
+  streaming:
+    provider: voice_piper
+  voice_piper:
+    manifest: C:/path/to/plugin/model_manifests/piper-ru_RU-dmitri-medium.json
+    model_dir: C:/path/to/plugin/models/piper-ru_RU-dmitri-medium
+    chunk_ms: 100
+```
+
+Manifest закрепляет MIT metadata репозитория, commit, model card и SHA-256
+`ru_RU-dmitri-medium`; dataset помечен CC0. Язык не определяется автоматически:
+RU/EN выбирается клиентом явно.
 
 ## Лицензия
 

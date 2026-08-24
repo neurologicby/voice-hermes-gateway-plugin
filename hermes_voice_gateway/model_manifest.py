@@ -10,7 +10,9 @@ from typing import Any
 
 from .stt import STTUnavailable
 
-ALLOWED_MODEL_LICENSES = frozenset({"Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "MIT"})
+ALLOWED_MODEL_LICENSES = frozenset(
+    {"Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "CC0-1.0", "MIT"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,8 +62,8 @@ class ModelManifest:
             values[key] = value.strip()
         if values["license_spdx"] not in ALLOWED_MODEL_LICENSES:
             raise STTUnavailable(f"Model license is not allowlisted: {values['license_spdx']}")
-        if values["family"] not in {"silero_vad", "t_one_ctc", "transducer"}:
-            raise STTUnavailable(f"Unsupported sherpa model family: {values['family']}")
+        if values["family"] not in {"piper", "silero_vad", "t_one_ctc", "transducer"}:
+            raise STTUnavailable(f"Unsupported local model family: {values['family']}")
         if not _valid_sha256(values["source_sha256"]):
             raise STTUnavailable("Model source_sha256 must be SHA-256")
         sample_rate = payload.get("sample_rate")

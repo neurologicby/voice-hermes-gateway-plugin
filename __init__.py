@@ -19,6 +19,9 @@ def register(ctx) -> None:
         check_requirements,
         validate_config,
     )
+    from .hermes_voice_gateway.tts import register_piper_provider
+
+    register_piper_provider()
 
     ctx.register_platform(
         name="voice",

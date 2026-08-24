@@ -6,6 +6,7 @@ import asyncio
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
@@ -35,6 +36,11 @@ from .ws_server import VoiceWSServer
 class VoiceStreamingTTSHandle(StreamingTTSHandle):
     stream_id: str = ""
     connection: ClientConnection | None = None
+    finished: bool = False
+    chunks_sent: int = 0
+    bytes_sent: int = 0
+    started_at: float = 0.0
+    first_audio_ms: float | None = None
 
 
 class VoiceGatewayAdapter(BasePlatformAdapter):
@@ -60,13 +66,17 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         )
         self.server = VoiceWSServer(self.voice_config, self)
         self._connections_by_chat: dict[str, ClientConnection] = {}
+        self._active_tts_by_chat: dict[str, VoiceStreamingTTSHandle] = {}
         self.ready = False
         self.stt_status: dict[str, Any] = {
             "engine": stt_engine.name if stt_engine is not None else "unloaded",
             "ready": stt_engine is not None,
             "vad": vad_engine.name if vad_engine is not None else "unloaded",
         }
-        self.tts_status: dict[str, Any] = {"engine": "unloaded"}
+        self.tts_status: dict[str, Any] = {
+            "engine": "voice_piper",
+            "transport_ready": False,
+        }
 
     @property
     def pairing(self) -> PairingService:
@@ -126,11 +136,14 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             self.stt_status["vad"] = vad_engine.name
         await self.server.start()
         self.ready = True
+        self.tts_status["transport_ready"] = True
         self._mark_connected()
         return True
 
     async def disconnect(self) -> None:
         self.ready = False
+        for handle in tuple(self._active_tts_by_chat.values()):
+            await self.abort_streaming_tts(handle, error="disconnect")
         await self.stt.close()
         await self.server.stop()
         self._connections_by_chat.clear()
@@ -197,6 +210,9 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             and audio_format.sample_width == 2
         )
 
+    def _should_auto_tts_for_chat(self, chat_id: str) -> bool:
+        return chat_id in self._connections_by_chat
+
     async def begin_streaming_tts(
         self,
         chat_id: str,
@@ -207,19 +223,28 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
         connection = self._connections_by_chat.get(chat_id)
         if connection is None or not self.supports_streaming_tts(chat_id, audio_format):
             return None
+        previous = self._active_tts_by_chat.get(chat_id)
+        if previous is not None:
+            await self.abort_streaming_tts(previous, error="replaced")
         handle = VoiceStreamingTTSHandle(
             chat_id=chat_id,
             audio_format=audio_format,
             stream_id=str(uuid4()),
             connection=connection,
+            started_at=perf_counter(),
         )
         await connection.send_json(
             {
                 "type": "tts_start",
                 "stream_id": handle.stream_id,
-                "format": {"sample_rate": 24_000, "channels": 1, "sample_width": 2},
+                "format": {
+                    "sample_rate": audio_format.sample_rate,
+                    "channels": audio_format.channels,
+                    "sample_width": audio_format.sample_width,
+                },
             }
         )
+        self._active_tts_by_chat[chat_id] = handle
         return handle
 
     async def write_streaming_tts(self, handle: StreamingTTSHandle, chunk: bytes) -> None:
@@ -227,7 +252,15 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             return
         if not isinstance(handle, VoiceStreamingTTSHandle) or handle.connection is None:
             return
+        if handle.finished or self._active_tts_by_chat.get(handle.chat_id) is not handle:
+            return
+        if len(chunk) % handle.audio_format.sample_width:
+            raise ValueError("TTS PCM chunk contains an incomplete sample")
         await handle.connection.send_audio(chunk)
+        handle.chunks_sent += 1
+        handle.bytes_sent += len(chunk)
+        if handle.first_audio_ms is None:
+            handle.first_audio_ms = (perf_counter() - handle.started_at) * 1000
         handle.audible = True
 
     async def finish_streaming_tts(
@@ -235,17 +268,25 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
     ) -> None:
         if not isinstance(handle, VoiceStreamingTTSHandle) or handle.connection is None:
             return
+        if handle.finished or handle.aborted:
+            return
+        handle.finished = True
+        if self._active_tts_by_chat.get(handle.chat_id) is handle:
+            self._active_tts_by_chat.pop(handle.chat_id, None)
         await handle.connection.send_json(
             {"type": "tts_end", "stream_id": handle.stream_id, "interrupted": interrupted}
         )
+        self._record_tts_metrics(handle, interrupted=interrupted)
 
     async def abort_streaming_tts(
         self, handle: StreamingTTSHandle, error: str | None = None
     ) -> None:
-        if handle.aborted:
+        if handle.aborted or getattr(handle, "finished", False):
             return
         handle.aborted = True
         if isinstance(handle, VoiceStreamingTTSHandle) and handle.connection is not None:
+            if self._active_tts_by_chat.get(handle.chat_id) is handle:
+                self._active_tts_by_chat.pop(handle.chat_id, None)
             await handle.connection.send_json(
                 {
                     "type": "tts_end",
@@ -254,6 +295,22 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
                     "error": bool(error),
                 }
             )
+            handle.finished = True
+            self._record_tts_metrics(handle, interrupted=True)
+
+    def _record_tts_metrics(
+        self, handle: VoiceStreamingTTSHandle, *, interrupted: bool
+    ) -> None:
+        self.tts_status["last_stream"] = {
+            "chunks": handle.chunks_sent,
+            "bytes": handle.bytes_sent,
+            "first_audio_ms": (
+                round(handle.first_audio_ms, 3)
+                if handle.first_audio_ms is not None
+                else None
+            ),
+            "interrupted": interrupted,
+        }
 
     async def handle_control(self, connection: ClientConnection, message: ControlMessage) -> None:
         handlers = {
@@ -471,6 +528,10 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
 
     async def _on_interrupt(self, connection: ClientConnection, payload: dict[str, Any]) -> None:
         del payload
+        if connection.context.chat_id:
+            active_tts = self._active_tts_by_chat.get(connection.context.chat_id)
+            if active_tts is not None:
+                await self.abort_streaming_tts(active_tts, error="barge-in")
         await self.stt.cancel(id(connection))
         connection.context.interrupt()
         if connection.context.chat_id:
@@ -514,6 +575,13 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             task = loop.create_task(self.stt.cancel(id(connection)))
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
+            active_tts = self._active_tts_by_chat.get(chat_id or "")
+            if active_tts is not None:
+                tts_task = loop.create_task(
+                    self.abort_streaming_tts(active_tts, error="client disconnected")
+                )
+                self._background_tasks.add(tts_task)
+                tts_task.add_done_callback(self._background_tasks.discard)
         connection.context.close()
 
 

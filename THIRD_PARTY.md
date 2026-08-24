@@ -14,9 +14,9 @@
 | sherpa Zipformer English 2023-06-26 int8 | Streaming EN STT weights | Apache-2.0 | разрешён; model card, LICENSE и SHA-256 зафиксированы |
 | Silero VAD v5 | Server/client endpoint detection | MIT | разрешён; ONNX и LICENSE закреплены SHA-256 |
 | Silero VAD | VAD ONNX | MIT | разрешён |
-| Piper (`piper1-gpl`) | Russian TTS engine | GPL-3.0 | разрешён для GPL-дистрибутива |
+| Piper 1.4.2 (`piper1-gpl`) | Russian TTS engine | GPL-3.0 | разрешён для GPL-дистрибутива; plugin-local dependency |
 | Kokoro-82M | English TTS model | Apache-2.0 | разрешён после фиксации checksum/версии |
-| Piper `ru_RU-dmitri-medium` | Russian voice candidate | dataset CC0 | кандидат; зафиксировать model artifact notice/checksum |
+| Piper `ru_RU-dmitri-medium` | Russian voice | model repository MIT; dataset CC0 | разрешён; commit/model card/artifact SHA-256 зафиксированы в manifest |
 | Piper `ru_RU-denis-medium` | Russian voice candidate | dataset CC0 | запасной кандидат; зафиксировать model artifact notice/checksum |
 
 ## Запрещённые по умолчанию

@@ -36,6 +36,7 @@ async def _run() -> dict[str, object]:
     from gateway import pairing as hermes_pairing
     from gateway.config import PlatformConfig
     from gateway.platform_registry import PlatformEntry, platform_registry
+    from gateway.platforms.base import AudioFormat
 
     platform_registry.register(
         PlatformEntry(
@@ -185,6 +186,32 @@ async def _run() -> dict[str, object]:
                 await receive_type(ws, "pong")
                 result["voice_cancelled"] = stt_engine.sessions[-1].cancelled
 
+                chat_id = f"voice:{device_id}"
+                tts_handle = await adapter.begin_streaming_tts(chat_id, AudioFormat())
+                assert tts_handle is not None
+                tts_start = await receive_type(ws, "tts_start")
+                result["tts_format"] = tts_start.get("format")
+                await adapter.write_streaming_tts(tts_handle, b"\x01\x00\x02\x00")
+                tts_audio = await asyncio.wait_for(ws.receive(), timeout=2.0)
+                result["tts_audio"] = bytes(tts_audio.data) == b"\x01\x00\x02\x00"
+                await adapter.finish_streaming_tts(tts_handle)
+                tts_end = await receive_type(ws, "tts_end")
+                result["tts_completed"] = tts_end.get("interrupted") is False
+
+                interrupted_handle = await adapter.begin_streaming_tts(chat_id, AudioFormat())
+                assert interrupted_handle is not None
+                await receive_type(ws, "tts_start")
+                await ws.send_json({"type": "interrupt"})
+                interrupted_end = await receive_type(ws, "tts_end")
+                result["tts_interrupted"] = interrupted_end.get("interrupted") is True
+                await adapter.write_streaming_tts(interrupted_handle, b"\x03\x00")
+                await ws.send_json({"type": "ping", "t": 13})
+                late_chunk_guard = await asyncio.wait_for(ws.receive(), timeout=2.0)
+                result["tts_late_chunk_dropped"] = (
+                    late_chunk_guard.type is aiohttp.WSMsgType.TEXT
+                    and json.loads(late_chunk_guard.data).get("type") == "pong"
+                )
+
                 async with session.ws_connect(url) as replacement:
                     await replacement.send_json(
                         {
@@ -249,6 +276,11 @@ def main() -> int:
         "voice_final": "voice final",
         "voice_dispatched": "voice final",
         "voice_cancelled": True,
+        "tts_format": {"sample_rate": 24000, "channels": 1, "sample_width": 2},
+        "tts_audio": True,
+        "tts_completed": True,
+        "tts_interrupted": True,
+        "tts_late_chunk_dropped": True,
         "reconnect_session_stable": True,
         "old_connection_replaced": True,
         "reconnect_ping": 456,

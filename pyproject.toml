@@ -23,6 +23,7 @@ dev = [
 voice = [
     "numpy==2.4.3",
     "onnxruntime==1.27.0",
+    "piper-tts==1.4.2",
     "sherpa-onnx==1.13.4",
 ]
 

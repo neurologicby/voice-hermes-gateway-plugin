@@ -10,7 +10,12 @@ from hermes_voice_gateway.model_manifest import ModelManifest
 from hermes_voice_gateway.stt import STTUnavailable
 
 
-def _write_manifest(model_dir: Path, *, license_spdx: str = "Apache-2.0") -> Path:
+def _write_manifest(
+    model_dir: Path,
+    *,
+    license_spdx: str = "Apache-2.0",
+    family: str = "t_one_ctc",
+) -> Path:
     files = {
         "model.onnx": b"model",
         "tokens.txt": b"tokens",
@@ -25,7 +30,7 @@ def _write_manifest(model_dir: Path, *, license_spdx: str = "Apache-2.0") -> Pat
         json.dumps(
             {
                 "model_id": "test-ru",
-                "family": "t_one_ctc",
+                "family": family,
                 "language": "ru",
                 "sample_rate": 8000,
                 "license_spdx": license_spdx,
@@ -50,6 +55,13 @@ def test_manifest_rejects_non_allowlisted_license(tmp_path: Path) -> None:
     path = _write_manifest(tmp_path, license_spdx="LicenseRef-Unknown")
     with pytest.raises(STTUnavailable, match="not allowlisted"):
         ModelManifest.load(path)
+
+
+def test_manifest_allows_cc0_piper_bundle(tmp_path: Path) -> None:
+    manifest = ModelManifest.load(
+        _write_manifest(tmp_path, license_spdx="CC0-1.0", family="piper")
+    )
+    assert manifest.family == "piper"
 
 
 def test_manifest_rejects_checksum_mismatch(tmp_path: Path) -> None:

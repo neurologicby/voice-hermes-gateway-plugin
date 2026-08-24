@@ -1,0 +1,24 @@
+{
+  "model_id": "piper-ru_RU-dmitri-medium-a31bce3",
+  "family": "piper",
+  "language": "ru",
+  "sample_rate": 22050,
+  "license_spdx": "MIT",
+  "license_url": "https://huggingface.co/rhasspy/piper-voices",
+  "source_url": "https://huggingface.co/rhasspy/piper-voices/tree/a31bce3ed50c05399b2a830efd1c607df03cf4b5/ru/ru_RU/dmitri/medium",
+  "source_sha256": "f073356ebc4bd0f80c5af58df2953a5988bd5bdab1eb38635ce960b071fbefcb",
+  "artifacts": [
+    {
+      "path": "ru_RU-dmitri-medium.onnx",
+      "sha256": "f073356ebc4bd0f80c5af58df2953a5988bd5bdab1eb38635ce960b071fbefcb"
+    },
+    {
+      "path": "ru_RU-dmitri-medium.onnx.json",
+      "sha256": "667ef3117bc642c2892dff7690d8bdc8ca4228aeaa783b2dc1416df632855e0d"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "56440cd6a7f0789669f53989b1c0ea244e335c2533fdb1fa8bac60e57205908e"
+    }
+  ]
+}
