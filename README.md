@@ -1,11 +1,11 @@
 # Hermes VoiceGateway plugin
 
-Открытый platform-плагин для Hermes Agent 0.20.5, добавляющий голосовой
+Открытый platform-плагин для Hermes Agent, добавляющий голосовой
 WebSocket-канал с pairing, streaming STT/TTS, barge-in, текстом и файлами.
 
-Фазы 0–2 завершены локальными contract/E2E probes; реализуется Фаза 3
-(streaming TTS и barge-in). Контракты интеграции сверены с
-Hermes commit `ddbd928ee4e881f0c7b3536a00355647c6559fe2`.
+Контракты и полный локальный голосовой тракт проверены с Hermes Agent 0.19.1,
+commit `f3cda0ceb18d8ba7465a6d223098ef0e56c8fee1`. Production-код Hermes при этом
+не изменяется: плагин подключается только через публичные platform/TTS hooks.
 
 ## Разработка
 
@@ -14,9 +14,22 @@ Hermes commit `ddbd928ee4e881f0c7b3536a00355647c6559fe2`.
 ```powershell
 .venv\Scripts\python.exe -m pytest plugin\tests -q
 .venv\Scripts\ruff.exe check plugin
-C:\Users\user\AppData\Roaming\uv\tools\hermes-agent\Scripts\python.exe `
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe `
   plugin\tools\pairing_e2e_probe.py
 ```
+
+Полный русский E2E использует настоящий `VoiceWSClient`, pairing store и
+dispatcher Hermes, VoiceGateway WebSocket, Silero VAD, T-One STT и Piper TTS.
+Контрольный ответ сохраняется в `plugin/build/full-stack-ru-e2e.wav`:
+
+```powershell
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe `
+  plugin\tools\full_stack_ru_e2e.py
+```
+
+LLM в этом probe заменён детерминированным message handler: локальный аудиотракт
+проверяется без внешней сети, ключей API и платных запросов. Сам dispatch проходит
+через фактический `BasePlatformAdapter` установленного Hermes.
 
 Runtime-зависимости целевой установки Hermes не модифицируются. Дополнительные
 ML-зависимости и модели устанавливаются локально в deploy-каталог плагина.
