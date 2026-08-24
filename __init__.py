@@ -12,7 +12,7 @@ if _DEPS_DIR.is_dir() and str(_DEPS_DIR) not in sys.path:
 
 
 def register(ctx) -> None:
-    """Регистрирует платформу через проверенный API Hermes 0.19.1."""
+    """Регистрирует платформу через проверенный API Hermes 0.20.5."""
 
     from .hermes_voice_gateway.adapter import (
         VoiceGatewayAdapter,

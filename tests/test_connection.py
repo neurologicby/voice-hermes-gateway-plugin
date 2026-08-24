@@ -44,3 +44,43 @@ def test_pre_auth_hello_is_allowed() -> None:
         }
     )
     ConnectionContext().authorize(parse_control_frame(raw))
+
+
+def test_file_chunks_complete_only_at_declared_size() -> None:
+    connection = ConnectionContext(state=ConnectionState.READY)
+    connection.start_file(name="report.txt", mime="text/plain", size=5, max_bytes=10)
+    assert connection.append_file_chunk(b"he") is None
+    completed = connection.append_file_chunk(b"llo")
+    assert completed is not None
+    assert completed.name == "report.txt"
+    assert completed.mime == "text/plain"
+    assert completed.data == b"hello"
+    assert connection.pending_file is None
+
+
+def test_file_overflow_cancels_pending_upload() -> None:
+    connection = ConnectionContext(state=ConnectionState.READY)
+    connection.start_file(name="report.txt", mime="text/plain", size=2, max_bytes=10)
+    with pytest.raises(ProtocolError) as captured:
+        connection.append_file_chunk(b"too long")
+    assert captured.value.code == "file_size_mismatch"
+    assert connection.pending_file is None
+
+
+def test_interrupt_cancels_pending_file() -> None:
+    connection = ConnectionContext(state=ConnectionState.READY)
+    connection.start_file(name="report.txt", mime="text/plain", size=5, max_bytes=10)
+    connection.interrupt()
+    assert connection.pending_file is None
+
+
+def test_oversized_file_is_rejected_before_binary_payload() -> None:
+    connection = ConnectionContext(state=ConnectionState.READY)
+    with pytest.raises(ProtocolError) as captured:
+        connection.start_file(
+            name="large.bin",
+            mime="application/octet-stream",
+            size=11,
+            max_bytes=10,
+        )
+    assert captured.value.code == "file_too_large"

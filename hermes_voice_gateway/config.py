@@ -13,7 +13,7 @@ class VoicePlatformConfig:
     host: str = "127.0.0.1"
     port: int = 8765
     max_connections: int = 10
-    max_file_bytes: int = 25 * 1024 * 1024
+    max_file_bytes: int = 50 * 1024 * 1024
     max_audio_chunk_bytes: int = 64 * 1024
     heartbeat_seconds: float = 30.0
     idle_timeout_seconds: float = 90.0

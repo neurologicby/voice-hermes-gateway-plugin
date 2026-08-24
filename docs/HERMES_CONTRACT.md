@@ -1,13 +1,14 @@
-# Контракт с Hermes Agent 0.19.1
+# Контракт с Hermes Agent 0.20.5
 
-Baseline: `f3cda0ceb18d8ba7465a6d223098ef0e56c8fee1`, 2026-07-31.
-Source: `%LOCALAPPDATA%/hermes/hermes-agent` (только чтение).
+Baseline: `ddbd928ee4e881f0c7b3536a00355647c6559fe2`, 2026-08-24.
+Source: official `NousResearch/hermes-agent` repository. Локальный source
+`%LOCALAPPDATA%/hermes/hermes-agent` используется для runtime probe.
 
 ## Подтверждённые сигнатуры
 
 - `ctx.register_platform(name, label, adapter_factory, check_fn, validate_config=None,
   required_env=None, install_hint="", **PlatformEntry fields)`.
-- Обязательные методы `BasePlatformAdapter`: `connect`, `disconnect`, `send`,
+- Обязательные методы `BasePlatformAdapter`: `connect(*, is_reconnect=False)`, `disconnect`, `send`,
   `get_chat_info`.
 - `send(chat_id, content, reply_to=None, metadata=None) -> SendResult`.
 - `send_voice(chat_id, audio_path, caption=None, reply_to=None, metadata=None, **kwargs)`.
@@ -26,9 +27,11 @@ Source: `%LOCALAPPDATA%/hermes/hermes-agent` (только чтение).
 3. В streaming контракте добавлены обязательные для opt-in методы
    `supports_streaming_tts` и `finish_streaming_tts`.
 4. `begin_streaming_tts` принимает обязательный `AudioFormat` и может вернуть `None`.
-5. `ensure_deps_fn` отсутствует в `PlatformEntry` и передавать его через
-   `register_platform` нельзя. Установка ML deps реализуется внутри плагина без этого hook.
-6. `allow_all_env` существует и должен регистрироваться вместе с `allowed_users_env`.
+5. `ensure_deps_fn` в Hermes 0.20.5 добавлен в `PlatformEntry` как активный installer;
+   `check_fn` должен оставаться пассивной проверкой без side effects.
+6. `PairingStore(profile=...)` и `build_session_key(..., profile=...)` обязательны для
+   изоляции multiplexed Hermes profiles.
+7. `allow_all_env` существует и должен регистрироваться вместе с `allowed_users_env`.
 
 Проверка: `tools/hermes_contract_probe.py` импортирует адаптер против source baseline,
 проверяет отсутствие abstract methods, dynamic Platform и маршруты transport app.

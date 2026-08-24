@@ -1,10 +1,10 @@
 # Hermes VoiceGateway plugin
 
-Открытый platform-плагин для Hermes Agent 0.19.1, добавляющий голосовой
+Открытый platform-плагин для Hermes Agent 0.20.5, добавляющий голосовой
 WebSocket-канал с pairing, streaming STT/TTS, barge-in, текстом и файлами.
 
-Проект находится в ранней Фазе 0. Контракты интеграции сверяются с локальным
-Hermes commit `f3cda0ceb18d8ba7465a6d223098ef0e56c8fee1`.
+Фаза 0 завершена; реализуется Фаза 1 (текст, файлы, сессии). Контракты интеграции сверены с
+Hermes commit `ddbd928ee4e881f0c7b3536a00355647c6559fe2`.
 
 ## Разработка
 

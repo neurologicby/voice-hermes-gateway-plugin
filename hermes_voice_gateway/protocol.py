@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -12,6 +13,7 @@ PROTOCOL_VERSION = 1
 MAX_CONTROL_FRAME_BYTES = 64 * 1024
 MAX_TEXT_CHARS = 16_384
 MAX_NAME_CHARS = 128
+MIME_TYPE_RE = re.compile(r"^[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+$")
 
 
 class MessageType(StrEnum):
@@ -152,7 +154,9 @@ def _validate_file(data: dict[str, Any]) -> None:
     name = _required_string(data, "name", max_chars=255)
     if "\x00" in name or "/" in name or "\\" in name or name in {".", ".."}:
         raise ProtocolError("invalid_file_name", "Имя файла содержит запрещённые символы")
-    _required_string(data, "mime", max_chars=255)
+    mime = _required_string(data, "mime", max_chars=255)
+    if MIME_TYPE_RE.fullmatch(mime) is None:
+        raise ProtocolError("invalid_mime", "MIME-тип файла имеет неверный формат")
     _positive_int(data, "size")
 
 

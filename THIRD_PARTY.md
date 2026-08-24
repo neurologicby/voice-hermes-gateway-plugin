@@ -7,8 +7,8 @@
 
 | Компонент | Назначение | Лицензия | Статус |
 |---|---|---|---|
-| Hermes Agent 0.19.1 | Host API, не включается в плагин | MIT | разрешён |
-| aiohttp 3.14.1 | WebSocket/HTTP transport | Apache-2.0 | разрешён |
+| Hermes Agent 0.20.5 | Host API, не включается в плагин | MIT | разрешён |
+| aiohttp 3.14.3 | WebSocket/HTTP transport | Apache-2.0 | разрешён; совпадает с Hermes messaging extra |
 | sherpa-onnx 1.13.4 | Streaming STT/KWS engine | Apache-2.0 | движок разрешён; каждую модель проверять отдельно |
 | Silero VAD | VAD ONNX | MIT | разрешён |
 | Piper (`piper1-gpl`) | Russian TTS engine | GPL-3.0 | разрешён для GPL-дистрибутива |
@@ -27,4 +27,3 @@
 Downloader моделей обязан работать только с manifest allowlist: URL, версия,
 SHA-256, лицензия и ссылка на сохранённый текст лицензии/NOTICE. Неизвестная
 модель не скачивается автоматически.
-

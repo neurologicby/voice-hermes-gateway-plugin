@@ -25,6 +25,21 @@ PRE_AUTH_MESSAGES = {
 
 
 @dataclass(slots=True)
+class CompletedFile:
+    name: str
+    mime: str
+    data: bytes = field(repr=False)
+
+
+@dataclass(slots=True)
+class PendingFile:
+    name: str
+    mime: str
+    size: int
+    data: bytearray = field(default_factory=bytearray, repr=False)
+
+
+@dataclass(slots=True)
 class ConnectionContext:
     state: ConnectionState = ConnectionState.UNPAIRED
     device_id: str | None = None
@@ -34,6 +49,7 @@ class ConnectionContext:
     paused: bool = False
     mode: str = "voice_only"
     active_audio_seq: int | None = None
+    pending_file: PendingFile | None = None
     last_seen: float = field(default_factory=monotonic)
 
     def authorize(self, message: ControlMessage) -> None:
@@ -70,6 +86,31 @@ class ConnectionContext:
 
     def interrupt(self) -> None:
         self.active_audio_seq = None
+        self.pending_file = None
+
+    def start_file(self, *, name: str, mime: str, size: int, max_bytes: int) -> None:
+        if self.state is not ConnectionState.READY:
+            raise ProtocolError("pair_required", "Файл требует авторизации")
+        if self.pending_file is not None:
+            raise ProtocolError("file_in_progress", "Предыдущий файл ещё не получен")
+        if size > max_bytes:
+            raise ProtocolError("file_too_large", "Файл превышает допустимый размер")
+        self.pending_file = PendingFile(name=name, mime=mime, size=size)
+
+    def append_file_chunk(self, payload: bytes) -> CompletedFile | None:
+        pending = self.pending_file
+        if pending is None:
+            raise ProtocolError("binary_not_expected", "Бинарный кадр не был объявлен")
+        if not payload:
+            raise ProtocolError("empty_binary", "Пустой бинарный кадр запрещён")
+        if len(pending.data) + len(payload) > pending.size:
+            self.pending_file = None
+            raise ProtocolError("file_size_mismatch", "Получено больше объявленного размера")
+        pending.data.extend(payload)
+        if len(pending.data) < pending.size:
+            return None
+        self.pending_file = None
+        return CompletedFile(name=pending.name, mime=pending.mime, data=bytes(pending.data))
 
     def close(self) -> None:
         self.interrupt()

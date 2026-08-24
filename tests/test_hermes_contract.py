@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_adapter_implements_live_hermes_0191_contract(
+def test_adapter_implements_live_hermes_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     pytest.importorskip("yaml", reason="Полный Hermes dependency graph не установлен в dev venv")
@@ -52,3 +52,9 @@ def test_adapter_implements_live_hermes_0191_contract(
     paths = {route.resource.canonical for route in adapter.server.app.router.routes()}
     assert {"/healthz", "/ws"} <= paths
     assert not getattr(type(adapter), "__abstractmethods__", set())
+
+    adapter._owner_profile = "secondary"
+    _ = adapter.pairing
+    source = adapter.build_source(chat_id="voice:device", chat_type="dm", user_id="device")
+    assert adapter._pairing_profile == "secondary"
+    assert adapter._build_session_key(source).startswith("agent:secondary:")

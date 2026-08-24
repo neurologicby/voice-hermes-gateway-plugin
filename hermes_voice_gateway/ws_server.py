@@ -98,6 +98,9 @@ class VoiceWSServer:
     async def _handle_text(self, connection: ClientConnection, raw: str) -> None:
         try:
             control = parse_control_frame(raw)
+            if connection.context.pending_file is not None and control.type.value != "interrupt":
+                connection.context.pending_file = None
+                raise ProtocolError("binary_expected", "Ожидается продолжение файла")
             connection.context.authorize(control)
             await self.adapter.handle_control(connection, control)
         except ProtocolError as exc:

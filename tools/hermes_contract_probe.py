@@ -50,16 +50,31 @@ def main() -> int:
         adapter = VoiceGatewayAdapter(
             PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": 8765})
         )
+        adapter._owner_profile = "contract-profile"
+        _ = adapter.pairing
+        source = adapter.build_source(
+            chat_id="voice:contract-device",
+            chat_type="dm",
+            user_id="contract-device",
+        )
         paths = sorted({route.resource.canonical for route in adapter.server.app.router.routes()})
         result = {
             "adapter": type(adapter).__name__,
             "base_contract": isinstance(adapter, BasePlatformAdapter),
             "abstract_methods": sorted(getattr(type(adapter), "__abstractmethods__", set())),
             "platform": adapter.platform.value,
+            "pairing_profile": adapter._pairing_profile,
+            "session_key": adapter._build_session_key(source),
             "routes": paths,
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0 if result["base_contract"] and not result["abstract_methods"] else 1
+        compatible = (
+            result["base_contract"]
+            and not result["abstract_methods"]
+            and result["pairing_profile"] == "contract-profile"
+            and str(result["session_key"]).startswith("agent:contract-profile:")
+        )
+        return 0 if compatible else 1
 
 
 if __name__ == "__main__":

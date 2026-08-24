@@ -52,6 +52,21 @@ async def _run() -> dict[str, object]:
     adapter = VoiceGatewayAdapter(
         PlatformConfig(enabled=True, extra={"host": "127.0.0.1", "port": port})
     )
+    inbound_events: asyncio.Queue[object] = asyncio.Queue()
+
+    async def handle_inbound(event):
+        await inbound_events.put(event)
+        if getattr(event, "text", "") == "phase one text":
+            return "phase one response"
+        return None
+
+    async def receive_type(ws, expected_type: str) -> dict[str, object]:
+        while True:
+            payload = await asyncio.wait_for(ws.receive_json(), timeout=2.0)
+            if payload.get("type") == expected_type:
+                return payload
+
+    adapter.set_message_handler(handle_inbound)
     device_id = str(uuid4())
     url = f"ws://127.0.0.1:{port}/ws"
     result: dict[str, object] = {}
@@ -80,6 +95,27 @@ async def _run() -> dict[str, object]:
                     }
                 )
                 result["hello_after_approve"] = (await ws.receive_json())["type"]
+
+                await ws.send_json({"type": "text", "text": "phase one text"})
+                text_event = await asyncio.wait_for(inbound_events.get(), timeout=2.0)
+                result["text_received"] = getattr(text_event, "text", "")
+                response = await receive_type(ws, "agent_text")
+                result["agent_text"] = response.get("text")
+
+                await adapter.send_draft(f"voice:{device_id}", 7, "phase one draft")
+                draft = await receive_type(ws, "agent_interim")
+                result["agent_interim"] = draft.get("text")
+
+                await ws.send_json(
+                    {"type": "file", "name": "probe.txt", "mime": "text/plain", "size": 5}
+                )
+                await ws.send_bytes(b"he")
+                await ws.send_bytes(b"llo")
+                file_event = await asyncio.wait_for(inbound_events.get(), timeout=2.0)
+                result["file_received"] = bool(
+                    getattr(file_event, "media_urls", None)
+                    and getattr(file_event, "media_types", None) == ["text/plain"]
+                )
 
                 result["revoked"] = store.revoke("voice", device_id)
 
@@ -114,6 +150,10 @@ def main() -> int:
         "pair_response": "pair_code",
         "approved": True,
         "hello_after_approve": "hello_ok",
+        "text_received": "phase one text",
+        "agent_text": "phase one response",
+        "agent_interim": "phase one draft",
+        "file_received": True,
         "revoked": True,
         "hello_after_revoke": "pair_required",
     }

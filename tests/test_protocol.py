@@ -41,6 +41,12 @@ def test_path_like_file_name_is_rejected() -> None:
     assert captured.value.code == "invalid_file_name"
 
 
+def test_invalid_file_mime_is_rejected() -> None:
+    with pytest.raises(ProtocolError) as captured:
+        parse_control_frame('{"type":"file","name":"report.pdf","mime":"pdf","size":1}')
+    assert captured.value.code == "invalid_mime"
+
+
 def test_boolean_is_not_accepted_as_sequence() -> None:
     with pytest.raises(ProtocolError):
         parse_control_frame('{"type":"audio_end","seq":true}')
