@@ -9,6 +9,7 @@ from hermes_voice_gateway.stt import (
     STTChunkResult,
     STTCoordinator,
     STTResult,
+    STTSessionMetrics,
     STTSessionMissing,
     STTUnavailable,
 )
@@ -85,6 +86,15 @@ async def test_stt_lifecycle_runs_in_worker_thread() -> None:
     result = await coordinator.finish(1, seq=7)
 
     assert result == STTResult(seq=7, text="final", language="ru")
+    metrics = coordinator.completed_metrics(1)
+    assert isinstance(metrics, STTSessionMetrics)
+    assert metrics.chunks == 1
+    assert metrics.queue_wait_ms >= 0
+    assert metrics.max_queue_wait_ms >= 0
+    assert metrics.first_interim_ms is not None
+    assert metrics.first_interim_ms >= 0
+    assert metrics.finalization_ms >= 0
+    assert metrics.to_wire()["chunks"] == 1
     assert engine.sessions[0].thread_ids
     assert event_loop_thread not in engine.sessions[0].thread_ids
 
@@ -95,9 +105,7 @@ async def test_vad_endpoint_is_returned_and_cancelled_with_stt() -> None:
     coordinator = STTCoordinator(FakeEngine(), vad_engine=vad)
     await coordinator.start(1, seq=7, language="ru")
     update = await coordinator.accept(1, seq=7, pcm_s16le=b"\x01\x00")
-    assert update == STTChunkResult(
-        interim="interim", speech_started=True, speech_ended=True
-    )
+    assert update == STTChunkResult(interim="interim", speech_started=True, speech_ended=True)
     await coordinator.finish(1, seq=7)
     assert vad.sessions[0].cancelled is True
 

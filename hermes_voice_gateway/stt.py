@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol
+from time import perf_counter
+from typing import Any, Protocol, TypeVar
+
+_T = TypeVar("_T")
 
 
 class STTError(RuntimeError):
@@ -31,6 +35,49 @@ class STTChunkResult:
     interim: str | None = None
     speech_started: bool = False
     speech_ended: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class STTSessionMetrics:
+    """Безопасные latency-метрики одной завершённой реплики."""
+
+    queue_wait_ms: float
+    max_queue_wait_ms: float
+    first_interim_ms: float | None
+    finalization_ms: float
+    chunks: int
+
+    def to_wire(self) -> dict[str, float | int | None]:
+        return {
+            "queue_wait_ms": round(self.queue_wait_ms, 3),
+            "max_queue_wait_ms": round(self.max_queue_wait_ms, 3),
+            "first_interim_ms": (
+                round(self.first_interim_ms, 3) if self.first_interim_ms is not None else None
+            ),
+            "finalization_ms": round(self.finalization_ms, 3),
+            "chunks": self.chunks,
+        }
+
+
+@dataclass(slots=True)
+class _MutableMetrics:
+    started_at: float
+    queue_wait_ms: float = 0.0
+    max_queue_wait_ms: float = 0.0
+    first_interim_ms: float | None = None
+    chunks: int = 0
+
+    def add_wait(self, wait_ms: float) -> None:
+        self.queue_wait_ms += wait_ms
+        self.max_queue_wait_ms = max(self.max_queue_wait_ms, wait_ms)
+
+
+@dataclass(slots=True)
+class _SessionEntry:
+    seq: int
+    session: SyncStreamingSTTSession
+    vad_session: Any | None
+    metrics: _MutableMetrics
 
 
 class SyncStreamingSTTSession(Protocol):
@@ -96,51 +143,79 @@ class STTCoordinator:
         self.engine = engine
         self.vad_engine = vad_engine
         self._worker_slots = asyncio.Semaphore(max_workers)
-        self._sessions: dict[int, tuple[int, SyncStreamingSTTSession, Any | None]] = {}
+        self._sessions: dict[int, _SessionEntry] = {}
+        self._completed_metrics: dict[int, STTSessionMetrics] = {}
 
     async def start(self, owner: int, *, seq: int, language: str) -> None:
         if self.engine is None:
             raise STTUnavailable("Streaming STT engine is not loaded")
         await self.cancel(owner)
-        async with self._worker_slots:
-            session, vad_session = await asyncio.to_thread(
-                self._create_sessions,
-                seq,
-                language,
-            )
-        self._sessions[owner] = (seq, session, vad_session)
+        started_at = perf_counter()
+        (session, vad_session), wait_ms = await self._run_worker(
+            self._create_sessions, seq, language
+        )
+        metrics = _MutableMetrics(started_at=started_at)
+        metrics.add_wait(wait_ms)
+        self._completed_metrics.pop(owner, None)
+        self._sessions[owner] = _SessionEntry(seq, session, vad_session, metrics)
 
     async def accept(self, owner: int, *, seq: int, pcm_s16le: bytes) -> STTChunkResult:
-        session, vad_session = self._session(owner, seq)
-        async with self._worker_slots:
-            return await asyncio.to_thread(self._accept_sync, session, vad_session, pcm_s16le)
+        entry = self._session(owner, seq)
+        result, wait_ms = await self._run_worker(
+            self._accept_sync, entry.session, entry.vad_session, pcm_s16le
+        )
+        entry.metrics.add_wait(wait_ms)
+        entry.metrics.chunks += 1
+        if result.interim and entry.metrics.first_interim_ms is None:
+            entry.metrics.first_interim_ms = (perf_counter() - entry.metrics.started_at) * 1000
+        return result
 
     async def finish(self, owner: int, *, seq: int) -> STTResult:
-        session, vad_session = self._session(owner, seq)
+        entry = self._session(owner, seq)
         self._sessions.pop(owner, None)
-        async with self._worker_slots:
-            result = await asyncio.to_thread(self._finish_sync, session, vad_session)
+        finalization_started = perf_counter()
+        result, wait_ms = await self._run_worker(
+            self._finish_sync, entry.session, entry.vad_session
+        )
+        entry.metrics.add_wait(wait_ms)
         if result.seq != seq:
             raise STTSessionMissing("STT engine returned a stale sequence")
+        self._completed_metrics[owner] = STTSessionMetrics(
+            queue_wait_ms=entry.metrics.queue_wait_ms,
+            max_queue_wait_ms=entry.metrics.max_queue_wait_ms,
+            first_interim_ms=entry.metrics.first_interim_ms,
+            finalization_ms=(perf_counter() - finalization_started) * 1000,
+            chunks=entry.metrics.chunks,
+        )
         return result
+
+    def completed_metrics(self, owner: int) -> STTSessionMetrics | None:
+        return self._completed_metrics.get(owner)
 
     async def cancel(self, owner: int) -> None:
         entry = self._sessions.pop(owner, None)
         if entry is None:
             return
-        _seq, session, vad_session = entry
-        async with self._worker_slots:
-            await asyncio.to_thread(self._cancel_sync, session, vad_session)
+        await self._run_worker(self._cancel_sync, entry.session, entry.vad_session)
 
     async def close(self) -> None:
         for owner in tuple(self._sessions):
             await self.cancel(owner)
 
-    def _session(self, owner: int, seq: int) -> tuple[SyncStreamingSTTSession, Any | None]:
+    def _session(self, owner: int, seq: int) -> _SessionEntry:
         entry = self._sessions.get(owner)
-        if entry is None or entry[0] != seq:
+        if entry is None or entry.seq != seq:
             raise STTSessionMissing("STT session does not match active sequence")
-        return entry[1], entry[2]
+        return entry
+
+    async def _run_worker(
+        self, function: Callable[..., _T], *args: Any
+    ) -> tuple[_T, float]:
+        queued_at = perf_counter()
+        async with self._worker_slots:
+            wait_ms = (perf_counter() - queued_at) * 1000
+            result = await asyncio.to_thread(function, *args)
+        return result, wait_ms
 
     def _create_sessions(
         self, seq: int, language: str

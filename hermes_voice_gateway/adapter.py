@@ -392,9 +392,19 @@ class VoiceGatewayAdapter(BasePlatformAdapter):
             connection.context.interrupt()
             raise ProtocolError("stt_failed", "Streaming STT не завершил реплику") from exc
         connection.context.finish_audio(seq)
-        await connection.send_json(
-            {"type": "final", "seq": seq, "text": result.text, "lang": result.language}
-        )
+        metrics = self.stt.completed_metrics(id(connection))
+        metrics_wire = metrics.to_wire() if metrics is not None else None
+        if metrics_wire is not None:
+            self.stt_status["last_turn"] = metrics_wire
+        final_message: dict[str, Any] = {
+            "type": "final",
+            "seq": seq,
+            "text": result.text,
+            "lang": result.language,
+        }
+        if metrics_wire is not None:
+            final_message["metrics"] = metrics_wire
+        await connection.send_json(final_message)
         if result.text:
             await self._dispatch_transcript(connection, result.text, seq)
 
