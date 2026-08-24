@@ -18,6 +18,16 @@ C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe `
   plugin\tools\pairing_e2e_probe.py
 ```
 
+Локальный Hermes gateway с уже настроенными моделями запускается из корня
+workspace одной командой:
+
+```powershell
+.\plugin\tools\run_local_gateway.ps1
+```
+
+Скрипт сохраняет pairing и конфигурацию Hermes и задаёт корректное uv-tool
+окружение для бинарных plugin-local зависимостей на Windows.
+
 Полный русский E2E использует настоящий `VoiceWSClient`, pairing store и
 dispatcher Hermes, VoiceGateway WebSocket, Silero VAD, T-One STT и Piper TTS.
 Контрольный ответ сохраняется в `plugin/build/full-stack-ru-e2e.wav`:
